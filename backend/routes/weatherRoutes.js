@@ -1,21 +1,20 @@
-// In your Express.js backend (e.g., routes/weather.js)
 const express = require('express');
 const router = express.Router();
 
-// Tomorrow.io API key and location
+// OpenWeather API key and location
 // Add these to your .env file:
-// TOMORROW_API_KEY=LtAGhmdELG9Dg8Go5AGMKAXpIWQs70hb
+// OPEN_WEATHER_API_KEY=01eeef9186c46ff905469f0a242a4d34
 // FARM_LATITUDE=your_farm_latitude (e.g., 7.7340 for Wenchi, Ghana)
 // FARM_LONGITUDE=your_farm_longitude (e.g., -2.1009 for Wenchi, Ghana)
 
 router.get('/current', async (req, res) => {
   try {
-    const apiKey = process.env.TOMORROW_API_KEY || 'LtAGhmdELG9Dg8Go5AGMKAXpIWQs70hb';
+    const apiKey = process.env.OPEN_WEATHER_API_KEY;
     const lat = process.env.FARM_LATITUDE || '7.7340';
     const lon = process.env.FARM_LONGITUDE || '-2.1009';
     
     const response = await fetch(
-      `https://api.tomorrow.io/v4/weather/realtime?location=${lat},${lon}&apikey=${apiKey}`
+      `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${apiKey}`
     );
     
     if (!response.ok) {
@@ -25,13 +24,13 @@ router.get('/current', async (req, res) => {
     const data = await response.json();
     
     const weatherData = {
-      temperature: Math.round(data.data.values.temperature),
-      humidity: data.data.values.humidity,
-      condition: getWeatherCondition(data.data.values.weatherCode),
-      description: getWeatherDescription(data.data.values.weatherCode),
-      windSpeed: data.data.values.windSpeed,
-      precipitation: data.data.values.precipitationProbability,
-      uvIndex: data.data.values.uvIndex,
+      temperature: Math.round(data.main.temp),
+      humidity: data.main.humidity,
+      condition: data.weather[0].main,
+      description: data.weather[0].description,
+      windSpeed: data.wind.speed,
+      precipitation: data.rain ? data.rain['1h'] || 0 : 0,
+      uvIndex: calculateUVIndex(data.weather[0].id, data.clouds.all),
       timestamp: new Date()
     };
     
@@ -53,12 +52,12 @@ router.get('/current', async (req, res) => {
 // Add forecast endpoint
 router.get('/forecast', async (req, res) => {
   try {
-    const apiKey = process.env.TOMORROW_API_KEY;
+    const apiKey = process.env.OPEN_WEATHER_API_KEY;
     const lat = process.env.FARM_LATITUDE || '7.7340';
     const lon = process.env.FARM_LONGITUDE || '-2.1009';
     
     const response = await fetch(
-      `https://api.tomorrow.io/v4/weather/forecast?location=${lat},${lon}&apikey=${apiKey}`
+      `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${apiKey}`
     );
     
     if (!response.ok) {
@@ -67,18 +66,48 @@ router.get('/forecast', async (req, res) => {
     
     const data = await response.json();
     
-    // Process the forecast data - Tomorrow.io returns hourly and daily forecasts
-    const dailyForecast = data.timelines.daily.map(day => ({
-      date: day.time,
-      temperatureMin: Math.round(day.values.temperatureMin),
-      temperatureMax: Math.round(day.values.temperatureMax),
-      humidity: day.values.humidityAvg,
-      precipitationProbability: day.values.precipitationProbabilityAvg,
-      weatherCondition: getWeatherCondition(day.values.weatherCodeMax),
-      description: getWeatherDescription(day.values.weatherCodeMax),
-      windSpeed: day.values.windSpeedAvg,
-      uvIndex: day.values.uvIndexAvg
-    }));
+    // Process the forecast data - OpenWeather returns 5 day forecast in 3-hour intervals
+    // Group by day to get daily forecasts
+    const forecastMap = new Map();
+    
+    data.list.forEach(item => {
+      const date = new Date(item.dt * 1000).toISOString().split('T')[0];
+      
+      if (!forecastMap.has(date)) {
+        forecastMap.set(date, {
+          temps: [],
+          humidity: [],
+          precipitation: [],
+          weatherCodes: [],
+          windSpeed: [],
+          descriptions: []
+        });
+      }
+      
+      const dayData = forecastMap.get(date);
+      dayData.temps.push(item.main.temp);
+      dayData.humidity.push(item.main.humidity);
+      dayData.precipitation.push(item.pop * 100); // Probability of precipitation is 0-1, convert to percentage
+      dayData.weatherCodes.push(item.weather[0].id);
+      dayData.windSpeed.push(item.wind.speed);
+      dayData.descriptions.push(item.weather[0].description);
+    });
+    
+    const dailyForecast = Array.from(forecastMap.entries()).map(([date, dayData]) => {
+      const mostCommonWeatherCode = getMostFrequent(dayData.weatherCodes);
+      
+      return {
+        date: date,
+        temperatureMin: Math.round(Math.min(...dayData.temps)),
+        temperatureMax: Math.round(Math.max(...dayData.temps)),
+        humidity: Math.round(dayData.humidity.reduce((sum, val) => sum + val, 0) / dayData.humidity.length),
+        precipitationProbability: Math.round(Math.max(...dayData.precipitation)),
+        weatherCondition: getWeatherCondition(mostCommonWeatherCode),
+        description: getMostFrequent(dayData.descriptions),
+        windSpeed: Math.round((dayData.windSpeed.reduce((sum, val) => sum + val, 0) / dayData.windSpeed.length) * 10) / 10,
+        uvIndex: calculateUVIndex(mostCommonWeatherCode, 0) // Cloud coverage would be ideal but we're estimating
+      };
+    });
     
     return res.status(200).json({
       success: true,
@@ -98,45 +127,95 @@ router.get('/forecast', async (req, res) => {
 // Add agricultural-specific data endpoint
 router.get('/agricultural', async (req, res) => {
   try {
-    const apiKey = process.env.TOMORROW_API_KEY;
+    const apiKey = process.env.OPEN_WEATHER_API_KEY;
     const lat = process.env.FARM_LATITUDE || '7.7340';
     const lon = process.env.FARM_LONGITUDE || '-2.1009';
     
-    // Get both realtime and forecast data for agricultural metrics
-    const realtimeResponse = await fetch(
-      `https://api.tomorrow.io/v4/weather/realtime?location=${lat},${lon}&apikey=${apiKey}`
+    // Get both current and forecast data
+    const currentResponse = await fetch(
+      `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${apiKey}`
     );
     
     const forecastResponse = await fetch(
-      `https://api.tomorrow.io/v4/weather/forecast?location=${lat},${lon}&apikey=${apiKey}`
+      `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${apiKey}`
     );
     
-    if (!realtimeResponse.ok || !forecastResponse.ok) {
+    if (!currentResponse.ok || !forecastResponse.ok) {
       throw new Error('Failed to fetch complete agricultural data');
     }
     
-    const realtimeData = await realtimeResponse.json();
+    const currentData = await currentResponse.json();
     const forecastData = await forecastResponse.json();
+    
+    // For soil moisture, we'll need to estimate based on rainfall and other factors
+    // since OpenWeather doesn't provide this directly
+    const estimateSoilMoisture = (rainAmount, humidity, temp) => {
+      // Simple estimation algorithm - in a real app, you'd use a more sophisticated model
+      let moisture = 40; // Base value (0-100 scale)
+      
+      // Recent rain increases soil moisture
+      moisture += rainAmount * 20;
+      
+      // Higher humidity slightly increases soil moisture
+      moisture += (humidity - 50) * 0.2;
+      
+      // Higher temperatures decrease soil moisture through evaporation
+      moisture -= (temp - 20) * 0.5;
+      
+      // Clamp between 0-100
+      return Math.max(0, Math.min(100, moisture));
+    };
+    
+    // Process forecast data for agricultural metrics
+    const forecastMap = new Map();
+    
+    forecastData.list.forEach(item => {
+      const date = new Date(item.dt * 1000).toISOString().split('T')[0];
+      
+      if (!forecastMap.has(date)) {
+        forecastMap.set(date, {
+          temps: [],
+          humidity: [],
+          precipitation: [],
+          uvIndices: []
+        });
+      }
+      
+      const dayData = forecastMap.get(date);
+      dayData.temps.push(item.main.temp);
+      dayData.humidity.push(item.main.humidity);
+      dayData.precipitation.push(item.pop * 100); // Probability of precipitation
+      dayData.uvIndices.push(calculateUVIndex(item.weather[0].id, item.clouds.all));
+    });
+    
+    // Get current rain amount, or 0 if none
+    const currentRainAmount = currentData.rain ? currentData.rain['1h'] || 0 : 0;
     
     // Compile agricultural-specific metrics
     const agriculturalData = {
       current: {
-        soilMoisture: realtimeData.data.values.soilMoisture,
-        precipitation: realtimeData.data.values.precipitationProbability,
-        temperature: realtimeData.data.values.temperature,
-        humidity: realtimeData.data.values.humidity,
-        uvIndex: realtimeData.data.values.uvIndex,
-        windSpeed: realtimeData.data.values.windSpeed,
+        soilMoisture: estimateSoilMoisture(currentRainAmount, currentData.main.humidity, currentData.main.temp),
+        precipitation: currentData.rain ? currentData.rain['1h'] || 0 : 0,
+        temperature: currentData.main.temp,
+        humidity: currentData.main.humidity,
+        uvIndex: calculateUVIndex(currentData.weather[0].id, currentData.clouds.all),
+        windSpeed: currentData.wind.speed,
         timestamp: new Date()
       },
-      forecast: forecastData.timelines.daily.map(day => ({
-        date: day.time,
-        precipitationProbability: day.values.precipitationProbabilityAvg,
-        temperatureMin: day.values.temperatureMin,
-        temperatureMax: day.values.temperatureMax,
-        soilMoisture: day.values.soilMoistureAvg,
-        uvIndex: day.values.uvIndexAvg
-      }))
+      forecast: Array.from(forecastMap.entries()).map(([date, dayData]) => {
+        const avgTemp = dayData.temps.reduce((sum, val) => sum + val, 0) / dayData.temps.length;
+        const avgHumidity = dayData.humidity.reduce((sum, val) => sum + val, 0) / dayData.humidity.length;
+        const maxPrecip = Math.max(...dayData.precipitation);
+        
+        return {
+          date: date,
+          precipitationProbability: Math.round(maxPrecip),
+          temperatureMin: Math.round(Math.min(...dayData.temps)),
+          temperatureMax: Math.round(Math.max(...dayData.temps)),
+          soilMoisture: estimateSoilMoisture(maxPrecip / 100, avgHumidity, avgTemp),
+          uvIndex: Math.round((dayData.uvIndices.reduce((sum, val) => sum + val, 0) / dayData.uvIndices.length) * 10) / 10
+        };
+      })
     };
     
     return res.status(200).json({
@@ -152,74 +231,113 @@ router.get('/agricultural', async (req, res) => {
   }
 });
 
-// Helper function to convert Tomorrow.io weather codes to conditions
-function getWeatherCondition(weatherCode) {
-  const weatherCodes = {
-    0: 'Clear',
-    1000: 'Clear',
-    1001: 'Cloudy',
-    1100: 'Mostly Clear',
-    1101: 'Partly Cloudy',
-    1102: 'Mostly Cloudy',
-    2000: 'Fog',
-    2100: 'Light Fog',
-    3000: 'Light Wind',
-    3001: 'Wind',
-    3002: 'Strong Wind',
-    4000: 'Drizzle',
-    4001: 'Rain',
-    4200: 'Light Rain',
-    4201: 'Heavy Rain',
-    5000: 'Snow',
-    5001: 'Flurries',
-    5100: 'Light Snow',
-    5101: 'Heavy Snow',
-    6000: 'Freezing Drizzle',
-    6001: 'Freezing Rain',
-    6200: 'Light Freezing Rain',
-    6201: 'Heavy Freezing Rain',
-    7000: 'Ice Pellets',
-    7101: 'Heavy Ice Pellets',
-    7102: 'Light Ice Pellets',
-    8000: 'Thunderstorm'
-  };
+// Add city search endpoint
+router.get('/by-city', async (req, res) => {
+  try {
+    const apiKey = process.env.OPEN_WEATHER_API_KEY;
+    const city = req.query.city;
+    
+    if (!city) {
+      return res.status(400).json({
+        success: false,
+        message: 'City name is required'
+      });
+    }
+    
+    const response = await fetch(
+      `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${apiKey}`
+    );
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        return res.status(404).json({
+          success: false,
+          message: 'City not found'
+        });
+      }
+      throw new Error(`API responded with status ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    const weatherData = {
+      city: data.name,
+      country: data.sys.country,
+      temperature: Math.round(data.main.temp),
+      humidity: data.main.humidity,
+      condition: data.weather[0].main,
+      description: data.weather[0].description,
+      windSpeed: data.wind.speed,
+      precipitation: data.rain ? data.rain['1h'] || 0 : 0,
+      uvIndex: calculateUVIndex(data.weather[0].id, data.clouds.all),
+      timestamp: new Date()
+    };
+    
+    return res.status(200).json({
+      success: true,
+      data: weatherData
+    });
+  } catch (error) {
+    console.error('City weather API error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch city weather data'
+    });
+  }
+});
+
+// Helper function to get the most frequent element in an array
+function getMostFrequent(arr) {
+  const counts = {};
+  let maxCount = 0;
+  let maxItem = null;
   
-  return weatherCodes[weatherCode] || 'Unknown';
+  for (const item of arr) {
+    counts[item] = (counts[item] || 0) + 1;
+    if (counts[item] > maxCount) {
+      maxCount = counts[item];
+      maxItem = item;
+    }
+  }
+  
+  return maxItem;
 }
 
-// Helper function to get more descriptive weather
-function getWeatherDescription(weatherCode) {
-  const descriptions = {
-    0: 'Clear conditions',
-    1000: 'Clear skies',
-    1001: 'Cloudy conditions',
-    1100: 'Mostly clear with few clouds',
-    1101: 'Partly cloudy conditions',
-    1102: 'Mostly cloudy with some sun',
-    2000: 'Foggy conditions',
-    2100: 'Light fog present',
-    3000: 'Light winds',
-    3001: 'Windy conditions',
-    3002: 'Strong winds, take caution',
-    4000: 'Light drizzle',
-    4001: 'Rainy conditions',
-    4200: 'Light rain showers',
-    4201: 'Heavy rainfall',
-    5000: 'Snowy conditions',
-    5001: 'Snow flurries',
-    5100: 'Light snowfall',
-    5101: 'Heavy snowfall',
-    6000: 'Freezing drizzle, caution advised',
-    6001: 'Freezing rain, caution advised',
-    6200: 'Light freezing rain',
-    6201: 'Heavy freezing rain',
-    7000: 'Ice pellets (sleet)',
-    7101: 'Heavy ice pellets',
-    7102: 'Light ice pellets',
-    8000: 'Thunderstorm activity'
-  };
+// Helper function to estimate UV index based on weather code and cloud coverage
+function calculateUVIndex(weatherCode, cloudCoverage) {
+  // Base UV index - would be more accurate with solar position data
+  let uvBase = 5; // Medium UV on a clear day
   
-  return descriptions[weatherCode] || 'Weather conditions unavailable';
+  // Reduce for cloud coverage
+  uvBase = uvBase * (1 - (cloudCoverage / 100) * 0.75);
+  
+  // Further reduce for precipitation weather conditions
+  if (weatherCode >= 200 && weatherCode < 700) {
+    uvBase *= 0.3; // Significant reduction for rain, snow, etc.
+  }
+  
+  return Math.round(uvBase * 10) / 10;
+}
+
+// Helper function to convert OpenWeather weather codes to conditions
+function getWeatherCondition(weatherCode) {
+  if (weatherCode >= 200 && weatherCode < 300) {
+    return 'Thunderstorm';
+  } else if (weatherCode >= 300 && weatherCode < 400) {
+    return 'Drizzle';
+  } else if (weatherCode >= 500 && weatherCode < 600) {
+    return 'Rain';
+  } else if (weatherCode >= 600 && weatherCode < 700) {
+    return 'Snow';
+  } else if (weatherCode >= 700 && weatherCode < 800) {
+    return 'Atmosphere'; // Mist, smoke, haze, etc.
+  } else if (weatherCode === 800) {
+    return 'Clear';
+  } else if (weatherCode > 800 && weatherCode < 900) {
+    return 'Clouds';
+  } else {
+    return 'Unknown';
+  }
 }
 
 module.exports = router;

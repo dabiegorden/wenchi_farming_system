@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Loading from '@/components/Loading';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -11,7 +12,8 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [weatherData, setWeatherData] = useState(null);
-  const [weatherForecast, setWeatherForecast] = useState(null);
+  const [weatherForecast, setWeatherForecast] = useState([]);
+  const [agriculturalData, setAgriculturalData] = useState(null);
 
   useEffect(() => {
     const fetchUserInfo = async () => {
@@ -76,11 +78,31 @@ export default function Dashboard() {
       }
     };
     
+    // Fetch agricultural weather data
+    const fetchAgriculturalData = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/weather/agricultural', {
+          credentials: 'include'
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setAgriculturalData(data.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch agricultural data:', err);
+      }
+    };
+    
     fetchWeatherData();
     fetchWeatherForecast();
+    fetchAgriculturalData();
     
     // Refresh weather data every 30 minutes
-    const weatherInterval = setInterval(fetchWeatherData, 30 * 60 * 1000);
+    const weatherInterval = setInterval(() => {
+      fetchWeatherData();
+      fetchWeatherForecast();
+      fetchAgriculturalData();
+    }, 30 * 60 * 1000);
     
     return () => clearInterval(weatherInterval);
   }, []);
@@ -111,11 +133,39 @@ export default function Dashboard() {
     }
   };
 
+  // Helper function to format dates for the forecast
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+
+  // Helper function to get weather icon class
+  const getWeatherIcon = (condition) => {
+    switch (condition?.toLowerCase()) {
+      case 'clear':
+        return '☀️';
+      case 'clouds':
+        return '☁️';
+      case 'rain':
+        return '🌧️';
+      case 'drizzle':
+        return '🌦️';
+      case 'thunderstorm':
+        return '⛈️';
+      case 'snow':
+        return '❄️';
+      case 'atmosphere':
+        return '🌫️';
+      default:
+        return '🌤️';
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <p className="text-xl font-semibold">Loading...</p>
+          <Loading />
         </div>
       </div>
     );
@@ -138,14 +188,14 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center py-6 border-b border-gray-200">
-          <h1 className="text-3xl font-bold text-gray-900">Wenchi Farm Institute</h1>
+        <div className="flex justify-between items-center py-6 bg-green-600 px-4 border-b border-green-600">
+          <h1 className="text-3xl font-bold text-gray-50">Wenchi Farm Institute</h1>
           <button
             onClick={handleSignOut}
             disabled={isLoggingOut}
-            className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400"
+            className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-slate-900 bg-gray-50 hover:bg-green-700 disabled:bg-green-500 cursor-pointer"
           >
             {isLoggingOut ? 'Signing Out...' : 'Sign Out'}
           </button>
@@ -155,7 +205,7 @@ export default function Dashboard() {
         <div className="py-6">
           <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
             <div className="px-4 py-5 sm:px-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900">User Information</h3>
+              <h3 className="text-lg leading-6 font-bold text-gray-900">User Information</h3>
               <p className="mt-1 max-w-2xl text-sm text-gray-500">Personal details and account information.</p>
             </div>
             <div className="border-t border-gray-200">
@@ -182,8 +232,7 @@ export default function Dashboard() {
         {/* Dashboard Cards */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
 
-
-          {/* Weather Card */}
+          {/* Enhanced Weather Card */}
           <div className="bg-white shadow rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-gray-800">Weather</h2>
@@ -191,18 +240,20 @@ export default function Dashboard() {
             </div>
             {weatherData ? (
               <div>
-                <p className="text-3xl font-bold">{weatherData.temperature}°C</p>
-                <p className="text-gray-600">{weatherData.condition}</p>
-                <p className="text-gray-600">Humidity: {weatherData.humidity}%</p>
-                <p className="text-gray-600">Wind Speed: {weatherData.windSpeed}%</p>
-                <p className="text-gray-600">precipitation: {weatherData.precipitation}%</p>
+                <div className="flex items-center mb-4">
+                  <span className="text-5xl mr-3">{getWeatherIcon(weatherData.condition)}</span>
+                  <div>
+                    <p className="text-3xl font-bold">{weatherData.temperature}°C</p>
+                    <p className="text-gray-600 capitalize">{weatherData.description}</p>
+                  </div>
+                </div>
               </div>
             ) : (
-              <p className="text-gray-500">Loading weather data...</p>
+              <div className="flex justify-center items-center py-10">
+                <p className="text-gray-500">Loading weather data...</p>
+              </div>
             )}
           </div>
-
-          
 
           {/* Crops Card */}
           <div className="bg-white shadow rounded-lg p-6">

@@ -34,7 +34,7 @@ export default function Home() {
       <div 
         className="fixed inset-0 bg-cover bg-center -z-10 bg_image"/>
 
-      <header className="fixed inset-x-0 top-0 z-50 bg-white shadow-md">
+      <header className="fixed inset-x-0 top-0 z-50 bg-green-600 shadow-md">
         <nav
           className="flex items-center justify-between p-6 lg:px-8"
           aria-label="Global"
@@ -48,25 +48,25 @@ export default function Home() {
                 width={24}
                 height={24}
               />
-              <span className="text-black text-xl">Wenchi Farm Institute</span>
+              <span className="text-gray-50 text-xl">Wenchi Farm Institute</span>
             </Link>
           </div>
           <div className="hidden lg:flex lg:gap-x-12">
             <Link
               href="/features"
-              className="text-sm font-semibold leading-6 text-gray-900 hover:text-green-600"
+              className="text-sm font-semibold leading-6 text-gray-50 hover:text-green-600"
             >
               Features
             </Link>
             <Link
               href="/about"
-              className="text-sm font-semibold leading-6 text-gray-900 hover:text-green-600"
+              className="text-sm font-semibold leading-6 text-gray-50 hover:text-green-600"
             >
               About
             </Link>
             <Link
               href="/contact"
-              className="text-sm font-semibold leading-6 text-gray-900 hover:text-green-600"
+              className="text-sm font-semibold leading-6 text-gray-50 hover:text-green-600"
             >
               Contact
             </Link>
@@ -74,7 +74,7 @@ export default function Home() {
           <div className="hidden lg:flex lg:flex-1 lg:justify-end">
             <Link
               href="/sign-in"
-              className="text-sm font-semibold leading-6 bg-green-100 px-4 py-2 rounded-md text-green-800 hover:bg-green-200"
+              className="text-sm font-semibold leading-6 bg-green-100 px-4 py-2 rounded-md text-slate-900 hover:bg-green-200"
             >
               Sign in <span aria-hidden="true">&rarr;</span>
             </Link>

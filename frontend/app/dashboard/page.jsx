@@ -10,6 +10,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [weatherData, setWeatherData] = useState(null);
 
   useEffect(() => {
     const fetchUserInfo = async () => {
@@ -19,11 +20,10 @@ export default function Dashboard() {
           headers: {
             'Content-Type': 'application/json',
           },
-          credentials: 'include' // Important to include cookies for session
+          credentials: 'include'
         });
 
         if (!response.ok) {
-          // If response is 401 (Unauthorized), redirect to sign-in
           if (response.status === 401) {
             router.push('/sign-in');
             return;
@@ -40,7 +40,22 @@ export default function Dashboard() {
       }
     };
 
+    const fetchWeatherData = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/weather/current', {
+          credentials: 'include'
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setWeatherData(data.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch weather data:', err);
+      }
+    };
+
     fetchUserInfo();
+    fetchWeatherData();
   }, [router]);
 
   const handleSignOut = async () => {
@@ -52,7 +67,7 @@ export default function Dashboard() {
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include' // Important to include cookies for session
+        credentials: 'include'
       });
       
       const data = await response.json();
@@ -61,10 +76,7 @@ export default function Dashboard() {
         throw new Error(data.message || 'Failed to sign out');
       }
       
-      // Clear any client-side state if needed
       setUser(null);
-      
-      // Redirect to sign-in page after successful sign-out
       router.push('/sign-in');
     } catch (err) {
       setError(err.message);
@@ -102,7 +114,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-6 border-b border-gray-200">
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Wenchi Farm Institute</h1>
           <button
             onClick={handleSignOut}
             disabled={isLoggingOut}
@@ -112,8 +124,9 @@ export default function Dashboard() {
           </button>
         </div>
 
+        {/* User Info Card */}
         <div className="py-6">
-          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+          <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
             <div className="px-4 py-5 sm:px-6">
               <h3 className="text-lg leading-6 font-medium text-gray-900">User Information</h3>
               <p className="mt-1 max-w-2xl text-sm text-gray-500">Personal details and account information.</p>
@@ -128,17 +141,103 @@ export default function Dashboard() {
                   <dt className="text-sm font-medium text-gray-500">Email address</dt>
                   <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{user?.email}</dd>
                 </div>
-                {/* <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                  <dt className="text-sm font-medium text-gray-500">User ID</dt>
-                  <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{user?._id}</dd>
-                </div> */}
-                <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                   <dt className="text-sm font-medium text-gray-500">Account created</dt>
                   <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                     {user?.createdAt ? new Date(user.createdAt).toLocaleString() : 'Not available'}
                   </dd>
                 </div>
               </dl>
+            </div>
+          </div>
+        </div>
+
+        {/* Dashboard Cards */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
+          {/* Weather Card */}
+          <div className="bg-white shadow rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-800">Weather</h2>
+              <Link href="/weather" className="text-sm text-indigo-600 hover:text-indigo-800">View Details</Link>
+            </div>
+            {weatherData ? (
+              <div>
+                <p className="text-3xl font-bold">{weatherData.temperature}°C</p>
+                <p className="text-gray-600">{weatherData.condition}</p>
+                <p className="text-gray-600">Humidity: {weatherData.humidity}%</p>
+              </div>
+            ) : (
+              <p className="text-gray-500">Loading weather data...</p>
+            )}
+          </div>
+
+          {/* Crops Card */}
+          <div className="bg-white shadow rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-800">Crops</h2>
+              <Link href="/crops" className="text-sm text-indigo-600 hover:text-indigo-800">Manage Crops</Link>
+            </div>
+            <p className="text-gray-600">Track and manage your crop database</p>
+            <div className="mt-4">
+              <Link href="/crops/add" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
+                Add New Crop
+              </Link>
+            </div>
+          </div>
+
+          {/* Land Management Card */}
+          <div className="bg-white shadow rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-800">Land Management</h2>
+              <Link href="/land" className="text-sm text-indigo-600 hover:text-indigo-800">View Fields</Link>
+            </div>
+            <p className="text-gray-600">Manage your fields and land organization</p>
+            <div className="mt-4">
+              <Link href="/land/map" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                View Field Map
+              </Link>
+            </div>
+          </div>
+
+          {/* Crop Health Card */}
+          <div className="bg-white shadow rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-800">Crop Health</h2>
+              <Link href="/health" className="text-sm text-indigo-600 hover:text-indigo-800">View Health</Link>
+            </div>
+            <p className="text-gray-600">Monitor crop diseases and health issues</p>
+            <div className="mt-4">
+              <Link href="/health/report" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700">
+                Report Issue
+              </Link>
+            </div>
+          </div>
+
+          {/* Inventory Card */}
+          <div className="bg-white shadow rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-800">Inventory</h2>
+              <Link href="/inventory" className="text-sm text-indigo-600 hover:text-indigo-800">View Inventory</Link>
+            </div>
+            <p className="text-gray-600">Track seeds, fertilizers, and pesticides</p>
+            <div className="mt-4">
+              <Link href="/inventory/add" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700">
+                Add Item
+              </Link>
+            </div>
+          </div>
+
+          {/* Reports Card */}
+          <div className="bg-white shadow rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-800">Reports</h2>
+              <Link href="/reports" className="text-sm text-indigo-600 hover:text-indigo-800">All Reports</Link>
+            </div>
+            <p className="text-gray-600">View and generate analytical reports</p>
+            <div className="mt-4">
+              <Link href="/reports/generate" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700">
+                Generate Report
+              </Link>
             </div>
           </div>
         </div>

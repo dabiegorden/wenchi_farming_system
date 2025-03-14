@@ -5,6 +5,7 @@ const session = require("express-session");
 const dotenv = require("dotenv");
 const authRoutes = require("./routes/authRoutes.js");
 const cookieParser = require('cookie-parser');
+const weatherRoutes = require("./routes/weatherRoutes.js");
 
 // Load environment variables
 dotenv.config();
@@ -40,6 +41,7 @@ app.use(
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/weather", weatherRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

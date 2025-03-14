@@ -11,6 +11,7 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [weatherData, setWeatherData] = useState(null);
+  const [weatherForecast, setWeatherForecast] = useState(null);
 
   useEffect(() => {
     const fetchUserInfo = async () => {
@@ -40,6 +41,12 @@ export default function Dashboard() {
       }
     };
 
+    fetchUserInfo();
+  }, [router]);
+
+  // weather
+  useEffect(() => {
+    // Fetch current weather data
     const fetchWeatherData = async () => {
       try {
         const response = await fetch('http://localhost:5000/api/weather/current', {
@@ -53,10 +60,30 @@ export default function Dashboard() {
         console.error('Failed to fetch weather data:', err);
       }
     };
-
-    fetchUserInfo();
+    
+    // Fetch weather forecast
+    const fetchWeatherForecast = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/weather/forecast', {
+          credentials: 'include'
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setWeatherForecast(data.data.daily);
+        }
+      } catch (err) {
+        console.error('Failed to fetch weather forecast:', err);
+      }
+    };
+    
     fetchWeatherData();
-  }, [router]);
+    fetchWeatherForecast();
+    
+    // Refresh weather data every 30 minutes
+    const weatherInterval = setInterval(fetchWeatherData, 30 * 60 * 1000);
+    
+    return () => clearInterval(weatherInterval);
+  }, []);
 
   const handleSignOut = async () => {
     try {
@@ -154,6 +181,8 @@ export default function Dashboard() {
 
         {/* Dashboard Cards */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
+
+
           {/* Weather Card */}
           <div className="bg-white shadow rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
@@ -165,11 +194,15 @@ export default function Dashboard() {
                 <p className="text-3xl font-bold">{weatherData.temperature}°C</p>
                 <p className="text-gray-600">{weatherData.condition}</p>
                 <p className="text-gray-600">Humidity: {weatherData.humidity}%</p>
+                <p className="text-gray-600">Wind Speed: {weatherData.windSpeed}%</p>
+                <p className="text-gray-600">precipitation: {weatherData.precipitation}%</p>
               </div>
             ) : (
               <p className="text-gray-500">Loading weather data...</p>
             )}
           </div>
+
+          
 
           {/* Crops Card */}
           <div className="bg-white shadow rounded-lg p-6">

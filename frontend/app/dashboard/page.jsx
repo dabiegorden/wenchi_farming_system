@@ -1,165 +1,190 @@
-'use client';
+"use client"
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import Loading from '@/components/Loading';
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
+import Loading from "@/components/loading"
 
-export default function Dashboard() {
-  const router = useRouter();
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [weatherData, setWeatherData] = useState(null);
-  const [weatherForecast, setWeatherForecast] = useState([]);
-  const [agriculturalData, setAgriculturalData] = useState(null);
+export default function UserDashboard() {
+  const router = useRouter()
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [weatherData, setWeatherData] = useState(null)
+  const [weatherForecast, setWeatherForecast] = useState([])
+  const [agriculturalData, setAgriculturalData] = useState(null)
+  const [updates, setUpdates] = useState([])
 
   useEffect(() => {
     const fetchUserInfo = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/auth/user-info', {
-          method: 'GET',
+        const response = await fetch("http://localhost:5000/api/auth/user-info", {
+          method: "GET",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
-          credentials: 'include'
-        });
+          credentials: "include",
+        })
 
         if (!response.ok) {
           if (response.status === 401) {
-            router.push('/sign-in');
-            return;
+            router.push("/sign-in")
+            return
           }
-          throw new Error('Failed to fetch user information');
+          throw new Error("Failed to fetch user information")
         }
 
-        const data = await response.json();
-        setUser(data.data.user);
+        const data = await response.json()
+        setUser(data.data.user)
+
+        // If user is admin, redirect to admin dashboard
+        if (data.data.user.role === "admin") {
+          router.push("/admin/dashboard")
+          return
+        }
       } catch (err) {
-        setError(err.message);
+        setError(err.message)
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
+    }
 
-    fetchUserInfo();
-  }, [router]);
+    fetchUserInfo()
+  }, [router])
 
-  // weather
+  // Fetch weather data
   useEffect(() => {
-    // Fetch current weather data
     const fetchWeatherData = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/weather/current', {
-          credentials: 'include'
-        });
+        const response = await fetch("http://localhost:5000/api/weather/current", {
+          credentials: "include",
+        })
         if (response.ok) {
-          const data = await response.json();
-          setWeatherData(data.data);
+          const data = await response.json()
+          setWeatherData(data.data)
         }
       } catch (err) {
-        console.error('Failed to fetch weather data:', err);
+        console.error("Failed to fetch weather data:", err)
       }
-    };
-    
-    // Fetch weather forecast
+    }
+
     const fetchWeatherForecast = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/weather/forecast', {
-          credentials: 'include'
-        });
+        const response = await fetch("http://localhost:5000/api/weather/forecast", {
+          credentials: "include",
+        })
         if (response.ok) {
-          const data = await response.json();
-          setWeatherForecast(data.data.daily);
+          const data = await response.json()
+          setWeatherForecast(data.data.daily)
         }
       } catch (err) {
-        console.error('Failed to fetch weather forecast:', err);
+        console.error("Failed to fetch weather forecast:", err)
       }
-    };
-    
-    // Fetch agricultural weather data
+    }
+
     const fetchAgriculturalData = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/weather/agricultural', {
-          credentials: 'include'
-        });
+        const response = await fetch("http://localhost:5000/api/weather/agricultural", {
+          credentials: "include",
+        })
         if (response.ok) {
-          const data = await response.json();
-          setAgriculturalData(data.data);
+          const data = await response.json()
+          setAgriculturalData(data.data)
         }
       } catch (err) {
-        console.error('Failed to fetch agricultural data:', err);
+        console.error("Failed to fetch agricultural data:", err)
       }
-    };
-    
-    fetchWeatherData();
-    fetchWeatherForecast();
-    fetchAgriculturalData();
-    
+    }
+
+    fetchWeatherData()
+    fetchWeatherForecast()
+    fetchAgriculturalData()
+
     // Refresh weather data every 30 minutes
-    const weatherInterval = setInterval(() => {
-      fetchWeatherData();
-      fetchWeatherForecast();
-      fetchAgriculturalData();
-    }, 30 * 60 * 1000);
-    
-    return () => clearInterval(weatherInterval);
-  }, []);
+    const weatherInterval = setInterval(
+      () => {
+        fetchWeatherData()
+        fetchWeatherForecast()
+        fetchAgriculturalData()
+      },
+      30 * 60 * 1000,
+    )
+
+    return () => clearInterval(weatherInterval)
+  }, [])
+
+  // Mock function to fetch updates from admin
+  // In a real application, this would be an API call to get updates
+  useEffect(() => {
+    // Simulating fetching updates from the backend
+    const mockUpdates = [
+      { id: 1, date: "2025-04-10", title: "New Crop Added", message: "Admin has added a new crop: Cassava" },
+      { id: 2, date: "2025-04-09", title: "Weather Alert", message: "Heavy rainfall expected in the next week" },
+      {
+        id: 3,
+        date: "2025-04-08",
+        title: "Inventory Update",
+        message: "New fertilizer stock has been added to inventory",
+      },
+    ]
+
+    setUpdates(mockUpdates)
+  }, [])
 
   const handleSignOut = async () => {
     try {
-      setIsLoggingOut(true);
-      
-      const response = await fetch('http://localhost:5000/api/auth/signout', {
-        method: 'POST',
+      setIsLoggingOut(true)
+
+      const response = await fetch("http://localhost:5000/api/auth/signout", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        credentials: 'include'
-      });
-      
-      const data = await response.json();
-      
+        credentials: "include",
+      })
+
+      const data = await response.json()
+
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to sign out');
+        throw new Error(data.message || "Failed to sign out")
       }
-      
-      setUser(null);
-      router.push('/sign-in');
+
+      setUser(null)
+      router.push("/sign-in")
     } catch (err) {
-      setError(err.message);
-      setIsLoggingOut(false);
+      setError(err.message)
+      setIsLoggingOut(false)
     }
-  };
+  }
 
   // Helper function to format dates for the forecast
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-  };
+    const date = new Date(dateString)
+    return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+  }
 
   // Helper function to get weather icon class
   const getWeatherIcon = (condition) => {
     switch (condition?.toLowerCase()) {
-      case 'clear':
-        return '☀️';
-      case 'clouds':
-        return '☁️';
-      case 'rain':
-        return '🌧️';
-      case 'drizzle':
-        return '🌦️';
-      case 'thunderstorm':
-        return '⛈️';
-      case 'snow':
-        return '❄️';
-      case 'atmosphere':
-        return '🌫️';
+      case "clear":
+        return "☀️"
+      case "clouds":
+        return "☁️"
+      case "rain":
+        return "🌧️"
+      case "drizzle":
+        return "🌦️"
+      case "thunderstorm":
+        return "⛈️"
+      case "snow":
+        return "❄️"
+      case "atmosphere":
+        return "🌫️"
       default:
-        return '🌤️';
+        return "🌤️"
     }
-  };
+  }
 
   if (loading) {
     return (
@@ -168,7 +193,7 @@ export default function Dashboard() {
           <Loading />
         </div>
       </div>
-    );
+    )
   }
 
   if (error) {
@@ -176,15 +201,15 @@ export default function Dashboard() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <p className="text-xl font-semibold text-red-500">Error: {error}</p>
-          <button 
-            onClick={() => router.push('/sign-in')}
-            className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+          <button
+            onClick={() => router.push("/sign-in")}
+            className="mt-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
           >
             Back to Sign In
           </button>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -195,9 +220,9 @@ export default function Dashboard() {
           <button
             onClick={handleSignOut}
             disabled={isLoggingOut}
-            className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-slate-900 bg-gray-50 hover:bg-green-700 disabled:bg-green-500 cursor-pointer"
+            className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-slate-900 bg-gray-50 hover:bg-green-700 hover:text-white disabled:bg-green-500 cursor-pointer"
           >
-            {isLoggingOut ? 'Signing Out...' : 'Sign Out'}
+            {isLoggingOut ? "Signing Out..." : "Sign Out"}
           </button>
         </div>
 
@@ -212,7 +237,7 @@ export default function Dashboard() {
               <dl>
                 <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                   <dt className="text-sm font-medium text-gray-500">Full name</dt>
-                  <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{user?.name || 'Not provided'}</dd>
+                  <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{user?.name || "Not provided"}</dd>
                 </div>
                 <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                   <dt className="text-sm font-medium text-gray-500">Email address</dt>
@@ -221,7 +246,7 @@ export default function Dashboard() {
                 <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                   <dt className="text-sm font-medium text-gray-500">Account created</dt>
                   <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                    {user?.createdAt ? new Date(user.createdAt).toLocaleString() : 'Not available'}
+                    {user?.createdAt ? new Date(user.createdAt).toLocaleString() : "Not available"}
                   </dd>
                 </div>
               </dl>
@@ -229,14 +254,42 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Admin Updates Section */}
+        <div className="mb-6">
+          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+            <div className="px-4 py-5 sm:px-6">
+              <h3 className="text-lg leading-6 font-bold text-gray-900">Recent Updates</h3>
+              <p className="mt-1 max-w-2xl text-sm text-gray-500">Latest updates from administrators.</p>
+            </div>
+            <div className="border-t border-gray-200">
+              {updates.length > 0 ? (
+                <ul className="divide-y divide-gray-200">
+                  {updates.map((update) => (
+                    <li key={update.id} className="px-4 py-4">
+                      <div className="flex justify-between">
+                        <h4 className="text-sm font-medium text-gray-900">{update.title}</h4>
+                        <p className="text-sm text-gray-500">{formatDate(update.date)}</p>
+                      </div>
+                      <p className="mt-1 text-sm text-gray-600">{update.message}</p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="px-4 py-5 text-sm text-gray-500">No recent updates.</p>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Dashboard Cards */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
-
-          {/* Enhanced Weather Card */}
+          {/* Weather Card */}
           <div className="bg-white shadow rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-gray-800">Weather</h2>
-              <Link href="/weather" className="text-sm text-indigo-600 hover:text-indigo-800">View Details</Link>
+              <Link href="/weather" className="text-sm text-green-600 hover:text-green-800">
+                View Details
+              </Link>
             </div>
             {weatherData ? (
               <div>
@@ -259,12 +312,17 @@ export default function Dashboard() {
           <div className="bg-white shadow rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-gray-800">Crops</h2>
-              <Link href="/crops" className="text-sm text-indigo-600 hover:text-indigo-800">Manage Crops</Link>
+              <Link href="/crops" className="text-sm text-green-600 hover:text-green-800">
+                View Crops
+              </Link>
             </div>
-            <p className="text-gray-600">Track and manage your crop database</p>
+            <p className="text-gray-600">View crop information and planting schedules</p>
             <div className="mt-4">
-              <Link href="/crops/add" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
-                Add New Crop
+              <Link
+                href="/crops/calendar"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+              >
+                View Planting Calendar
               </Link>
             </div>
           </div>
@@ -273,59 +331,22 @@ export default function Dashboard() {
           <div className="bg-white shadow rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-gray-800">Land Management</h2>
-              <Link href="/land" className="text-sm text-indigo-600 hover:text-indigo-800">View Fields</Link>
+              <Link href="/land" className="text-sm text-green-600 hover:text-green-800">
+                View Fields
+              </Link>
             </div>
-            <p className="text-gray-600">Manage your fields and land organization</p>
+            <p className="text-gray-600">View field information and crop assignments</p>
             <div className="mt-4">
-              <Link href="/land/map" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+              <Link
+                href="/land/map"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              >
                 View Field Map
-              </Link>
-            </div>
-          </div>
-
-          {/* Crop Health Card */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-800">Crop Health</h2>
-              <Link href="/health" className="text-sm text-indigo-600 hover:text-indigo-800">View Health</Link>
-            </div>
-            <p className="text-gray-600">Monitor crop diseases and health issues</p>
-            <div className="mt-4">
-              <Link href="/health/report" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700">
-                Report Issue
-              </Link>
-            </div>
-          </div>
-
-          {/* Inventory Card */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-800">Inventory</h2>
-              <Link href="/inventory" className="text-sm text-indigo-600 hover:text-indigo-800">View Inventory</Link>
-            </div>
-            <p className="text-gray-600">Track seeds, fertilizers, and pesticides</p>
-            <div className="mt-4">
-              <Link href="/inventory/add" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700">
-                Add Item
-              </Link>
-            </div>
-          </div>
-
-          {/* Reports Card */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-800">Reports</h2>
-              <Link href="/reports" className="text-sm text-indigo-600 hover:text-indigo-800">All Reports</Link>
-            </div>
-            <p className="text-gray-600">View and generate analytical reports</p>
-            <div className="mt-4">
-              <Link href="/reports/generate" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700">
-                Generate Report
               </Link>
             </div>
           </div>
         </div>
       </div>
     </div>
-  );
+  )
 }

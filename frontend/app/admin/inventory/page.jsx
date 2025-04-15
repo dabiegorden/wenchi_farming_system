@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/pagination"
 import { Search, Plus, Eye, Edit, Trash, Package } from "lucide-react"
 
-export default function InventoryManagement() {
+export default function AdminInventoryManagement() {
   const router = useRouter()
   const [inventory, setInventory] = useState([])
   const [loading, setLoading] = useState(true)
@@ -36,7 +36,8 @@ export default function InventoryManagement() {
   const fetchInventory = async () => {
     setLoading(true)
     try {
-      let url = `http://localhost:5000/api/inventory?page=${pagination.page}&limit=${pagination.limit}`
+      // Updated to use the correct API endpoint
+      let url = `http://localhost:5000/api/inventory/items?page=${pagination.page}&limit=${pagination.limit}`
 
       if (searchTerm) {
         url += `&search=${searchTerm}`
@@ -55,12 +56,18 @@ export default function InventoryManagement() {
       }
 
       const data = await response.json()
-      setInventory(data.data.items)
-      setPagination({
-        ...pagination,
-        total: data.data.pagination.total,
-        pages: data.data.pagination.pages,
-      })
+
+      if (data.success) {
+        setInventory(data.data.items || [])
+        setPagination({
+          ...pagination,
+          total: data.data.pagination?.total || 0,
+          pages: data.data.pagination?.pages || 1,
+        })
+        setError("")
+      } else {
+        throw new Error(data.message || "Failed to fetch inventory items")
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -84,7 +91,8 @@ export default function InventoryManagement() {
     }
 
     try {
-      const response = await fetch(`http://localhost:5000/api/inventory/${itemId}`, {
+      // Updated to use the correct API endpoint
+      const response = await fetch(`http://localhost:5000/api/inventory/items/${itemId}`, {
         method: "DELETE",
         credentials: "include",
       })
@@ -93,12 +101,17 @@ export default function InventoryManagement() {
         throw new Error("Failed to delete inventory item")
       }
 
-      toast.success("Inventory item deleted successfully")
+      const data = await response.json()
 
-      // Refresh the inventory list
-      fetchInventory()
+      if (data.success) {
+        toast.success("Inventory item deleted successfully")
+        // Refresh the inventory list
+        fetchInventory()
+      } else {
+        throw new Error(data.message || "Failed to delete inventory item")
+      }
     } catch (err) {
-      toast.error(err.message)
+      toast.error("Error: " + err.message)
     }
   }
 
@@ -145,7 +158,6 @@ export default function InventoryManagement() {
                 <SelectItem value="pesticide">Pesticide</SelectItem>
                 <SelectItem value="tool">Tool</SelectItem>
                 <SelectItem value="seed">Seed</SelectItem>
-                <SelectItem value="equipment">Equipment</SelectItem>
                 <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
@@ -172,7 +184,7 @@ export default function InventoryManagement() {
                         <th className="px-4 py-3 text-left text-sm font-medium">Item</th>
                         <th className="px-4 py-3 text-left text-sm font-medium">Category</th>
                         <th className="px-4 py-3 text-left text-sm font-medium">Quantity</th>
-                        <th className="px-4 py-3 text-left text-sm font-medium">Unit Price</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium">Unit Cost</th>
                         <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
                         <th className="px-4 py-3 text-left text-sm font-medium">Actions</th>
                       </tr>
@@ -201,18 +213,18 @@ export default function InventoryManagement() {
                             <td className="px-4 py-3 text-sm">
                               {item.quantity} {item.unit}
                             </td>
-                            <td className="px-4 py-3 text-sm">${item.unitPrice?.toFixed(2) || "0.00"}</td>
+                            <td className="px-4 py-3 text-sm">${item.unitCost?.toFixed(2) || "0.00"}</td>
                             <td className="px-4 py-3 text-sm">
                               <span
                                 className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                  item.quantity > item.lowStockThreshold
+                                  item.quantity > item.reorderLevel
                                     ? "bg-green-100 text-green-800"
                                     : item.quantity > 0
                                       ? "bg-amber-100 text-amber-800"
                                       : "bg-red-100 text-red-800"
                                 }`}
                               >
-                                {item.quantity > item.lowStockThreshold
+                                {item.quantity > item.reorderLevel
                                   ? "In Stock"
                                   : item.quantity > 0
                                     ? "Low Stock"
@@ -246,7 +258,7 @@ export default function InventoryManagement() {
                       ) : (
                         <tr>
                           <td colSpan={6} className="px-4 py-3 text-sm text-center text-muted-foreground">
-                            No inventory items found
+                            {error ? "Error loading inventory items" : "No inventory items found"}
                           </td>
                         </tr>
                       )}

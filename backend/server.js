@@ -18,6 +18,7 @@ const inventoryRoutes = require("./routes/inventoryRoutes.js")
 const landRoutes = require("./routes/landRoutes.js")
 const notificationRoutes = require("./routes/notificationRoutes.js")
 const reportRoutes = require("./routes/reportRoutes.js")
+const aiRoutes = require("./routes/aiRoutes.js")
 
 // Load environment variables
 dotenv.config()
@@ -92,6 +93,7 @@ app.use("/api/inventory", inventoryRoutes)
 app.use("/api/land", landRoutes)
 app.use("/api/notifications", notificationRoutes)
 app.use("/api/reports", reportRoutes)
+app.use("/api/ai", aiRoutes)
 
 // Health check endpoint
 app.get("/health", (req, res) => {
@@ -115,6 +117,38 @@ app.use((req, res) => {
   })
 })
 
+// Cleanup expired notifications daily
+const cleanupExpiredNotifications = async () => {
+  try {
+    const Notification = require("./models/Notification")
+    const count = await Notification.cleanupExpired()
+    console.log(`Cleaned up ${count} expired notifications`)
+  } catch (error) {
+    console.error("Error cleaning up expired notifications:", error)
+  }
+}
+
+// Schedule cleanup to run daily at midnight
+const scheduleCleanup = () => {
+  const now = new Date()
+  const night = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1, // tomorrow
+    0,
+    0,
+    0, // midnight
+  )
+  const timeToMidnight = night.getTime() - now.getTime()
+
+  // Schedule first run
+  setTimeout(() => {
+    cleanupExpiredNotifications()
+    // Then schedule to run daily
+    setInterval(cleanupExpiredNotifications, 24 * 60 * 60 * 1000)
+  }, timeToMidnight)
+}
+
 // Start server
 const PORT = process.env.PORT || 5000
 app.listen(PORT, async () => {
@@ -122,6 +156,7 @@ app.listen(PORT, async () => {
   try {
     await connectToDatabase()
     console.log("Database connected successfully")
+    scheduleCleanup() // Start notification cleanup scheduler
   } catch (error) {
     console.error("Database connection failed:", error.message)
   }

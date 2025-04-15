@@ -184,6 +184,7 @@ export default function LandManagement() {
                           alt={land.name}
                           fill
                           className="object-cover"
+                          size="100%"
                         />
                         <div className="absolute top-2 right-2">
                           <span

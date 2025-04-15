@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,24 +13,78 @@ import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { ArrowLeft } from "lucide-react"
 
-export default function AddInventoryItem() {
+export default function EditInventoryItem() {
+  const params = useParams()
+  const itemId = params.id
+
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [formData, setFormData] = useState({
     name: "",
-    category: "tool",
+    category: "",
     description: "",
     quantity: "",
-    unit: "pcs",
+    unit: "",
     unitCost: "",
     reorderLevel: "",
-    supplier: "",
     location: "",
+    supplier: "",
     notes: "",
   })
   const [image, setImage] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
+
+  useEffect(() => {
+    const fetchItem = async () => {
+      try {
+        // Updated to use the correct API endpoint
+        const response = await fetch(`http://localhost:5000/api/inventory/items/${itemId}`, {
+          credentials: "include",
+        })
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch inventory item")
+        }
+
+        const data = await response.json()
+
+        if (data.success) {
+          const item = data.data.item
+
+          // Set form data
+          setFormData({
+            name: item.name || "",
+            category: item.category || "",
+            description: item.description || "",
+            quantity: item.quantity || "",
+            unit: item.unit || "",
+            unitCost: item.unitCost || "",
+            reorderLevel: item.reorderLevel || "",
+            location: item.location || "",
+            supplier: item.supplier || "",
+            notes: item.notes || "",
+          })
+
+          // Set image preview if exists
+          if (item.imageUrl) {
+            setImagePreview(`http://localhost:5000${item.imageUrl}`)
+          }
+        } else {
+          throw new Error(data.message || "Failed to fetch inventory item")
+        }
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (itemId) {
+      fetchItem()
+    }
+  }, [itemId])
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -61,7 +115,7 @@ export default function AddInventoryItem() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setLoading(true)
+    setSaving(true)
     setError("")
 
     try {
@@ -76,8 +130,8 @@ export default function AddInventoryItem() {
       formDataToSend.append("unit", formData.unit)
       if (formData.unitCost) formDataToSend.append("unitCost", formData.unitCost)
       if (formData.reorderLevel) formDataToSend.append("reorderLevel", formData.reorderLevel)
-      if (formData.supplier) formDataToSend.append("supplier", formData.supplier)
       if (formData.location) formDataToSend.append("location", formData.location)
+      if (formData.supplier) formDataToSend.append("supplier", formData.supplier)
       if (formData.notes) formDataToSend.append("notes", formData.notes)
 
       // Add image if selected
@@ -86,8 +140,8 @@ export default function AddInventoryItem() {
       }
 
       // Updated to use the correct API endpoint
-      const response = await fetch(`http://localhost:5000/api/inventory/items`, {
-        method: "POST",
+      const response = await fetch(`http://localhost:5000/api/inventory/items/${itemId}`, {
+        method: "PUT",
         body: formDataToSend,
         credentials: "include",
       })
@@ -95,28 +149,40 @@ export default function AddInventoryItem() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.message || "Failed to create inventory item")
+        throw new Error(data.message || "Failed to update inventory item")
       }
 
-      toast.success("Inventory item created successfully")
-      router.push("/admin/inventory")
+      if (data.success) {
+        toast.success("Inventory item updated successfully")
+        router.push(`/admin/inventory/${itemId}`)
+      } else {
+        throw new Error(data.message || "Failed to update inventory item")
+      }
     } catch (err) {
       setError(err.message)
       toast.error("Error: " + err.message)
     } finally {
-      setLoading(false)
+      setSaving(false)
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center space-x-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/admin/inventory">
+          <Link href={`/admin/inventory/${itemId}`}>
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
-        <h1 className="text-3xl font-bold">Add New Inventory Item</h1>
+        <h1 className="text-3xl font-bold">Edit Inventory Item</h1>
       </div>
 
       {error && (
@@ -241,7 +307,7 @@ export default function AddInventoryItem() {
               <Input id="image" type="file" accept="image/*" onChange={handleImageChange} />
               {imagePreview && (
                 <div className="mt-2">
-                  <p className="text-sm text-muted-foreground mb-1">Preview:</p>
+                  <p className="text-sm text-muted-foreground mb-1">Current Image:</p>
                   <img
                     src={imagePreview || "/placeholder.svg"}
                     alt="Preview"
@@ -265,10 +331,10 @@ export default function AddInventoryItem() {
           </CardContent>
           <CardFooter className="flex justify-between">
             <Button variant="outline" asChild>
-              <Link href="/admin/inventory">Cancel</Link>
+              <Link href={`/admin/inventory/${itemId}`}>Cancel</Link>
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Creating..." : "Create Item"}
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving..." : "Save Changes"}
             </Button>
           </CardFooter>
         </form>

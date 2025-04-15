@@ -17,7 +17,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
 } from "@/components/ui/sidebar"
-import { Home, Users, Leaf, Thermometer, Package, Map, Bell, FileText, Settings, LogOut } from "lucide-react"
+import { Home, Users, Leaf, Thermometer, Package, Map, Bell, FileText, Settings, LogOut, AirVent } from "lucide-react"
 
 export default function AdminLayout({ children }) {
   const router = useRouter()
@@ -193,6 +193,18 @@ export default function AdminLayout({ children }) {
                       <Link href="/admin/reports">
                         <FileText className="h-4 w-4" />
                         <span>Reports</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  {/* AI */}
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname === "/admin/ai" || pathname.startsWith("/admin/ai/")}
+                    >
+                      <Link href="/admin/ai">
+                        <AirVent className="h-4 w-4" />
+                        <span>AI Assistants</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

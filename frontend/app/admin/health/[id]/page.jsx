@@ -111,7 +111,7 @@ export default function HealthAssessmentDetails({ params }) {
           <div>
             <h1 className="text-3xl font-bold">Health Assessment</h1>
             <p className="text-muted-foreground">
-              {assessment.crop?.name || "Unknown Crop"} - {formatDate(assessment.date)}
+              {assessment.cropId?.name || "Unknown Crop"} - {formatDate(assessment.createdAt)}
             </p>
           </div>
         </div>
@@ -143,7 +143,9 @@ export default function HealthAssessmentDetails({ params }) {
                       ? "bg-yellow-100"
                       : assessment.status === "moderate"
                         ? "bg-orange-100"
-                        : "bg-red-100"
+                        : assessment.status === "severe"
+                          ? "bg-red-100"
+                          : "bg-gray-100"
                 }`}
               >
                 <Thermometer
@@ -154,12 +156,16 @@ export default function HealthAssessmentDetails({ params }) {
                         ? "text-yellow-600"
                         : assessment.status === "moderate"
                           ? "text-orange-600"
-                          : "text-red-600"
+                          : assessment.status === "severe"
+                            ? "text-red-600"
+                            : "text-gray-600"
                   }`}
                 />
               </div>
               <h2 className="text-2xl font-bold capitalize">{assessment.status}</h2>
-              <p className="text-muted-foreground mt-2">{assessment.condition || "No specific condition noted"}</p>
+              <p className="text-muted-foreground mt-2">
+                {assessment.aiAnalysis?.disease || "No specific condition noted"}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -175,9 +181,9 @@ export default function HealthAssessmentDetails({ params }) {
                   <Leaf className="h-5 w-5 text-green-600 mt-0.5" />
                   <div>
                     <h3 className="font-medium">Crop</h3>
-                    <p className="text-muted-foreground mt-1">{assessment.crop?.name || "Unknown Crop"}</p>
-                    {assessment.crop?.scientificName && (
-                      <p className="text-xs text-muted-foreground">{assessment.crop.scientificName}</p>
+                    <p className="text-muted-foreground mt-1">{assessment.cropId?.name || "Unknown Crop"}</p>
+                    {assessment.cropId?.scientificName && (
+                      <p className="text-xs text-muted-foreground">{assessment.cropId.scientificName}</p>
                     )}
                   </div>
                 </div>
@@ -186,7 +192,7 @@ export default function HealthAssessmentDetails({ params }) {
                   <Map className="h-5 w-5 text-amber-600 mt-0.5" />
                   <div>
                     <h3 className="font-medium">Land Plot</h3>
-                    <p className="text-muted-foreground mt-1">{assessment.landPlot?.name || "Not specified"}</p>
+                    <p className="text-muted-foreground mt-1">{assessment.landId?.name || "Not specified"}</p>
                   </div>
                 </div>
 
@@ -194,7 +200,7 @@ export default function HealthAssessmentDetails({ params }) {
                   <Calendar className="h-5 w-5 text-blue-600 mt-0.5" />
                   <div>
                     <h3 className="font-medium">Assessment Date</h3>
-                    <p className="text-muted-foreground mt-1">{formatDate(assessment.date)}</p>
+                    <p className="text-muted-foreground mt-1">{formatDate(assessment.createdAt)}</p>
                   </div>
                 </div>
 
@@ -202,7 +208,7 @@ export default function HealthAssessmentDetails({ params }) {
                   <User className="h-5 w-5 text-purple-600 mt-0.5" />
                   <div>
                     <h3 className="font-medium">Assessed By</h3>
-                    <p className="text-muted-foreground mt-1">{assessment.assessedBy?.name || "System"}</p>
+                    <p className="text-muted-foreground mt-1">{assessment.createdBy?.name || "System"}</p>
                   </div>
                 </div>
               </div>
@@ -220,17 +226,23 @@ export default function HealthAssessmentDetails({ params }) {
                 </div>
               )}
 
-              {assessment.diagnosis && (
+              {assessment.aiAnalysis?.description && (
                 <div>
                   <h3 className="font-medium">Diagnosis</h3>
-                  <p className="text-muted-foreground mt-1">{assessment.diagnosis}</p>
+                  <p className="text-muted-foreground mt-1">{assessment.aiAnalysis.description}</p>
                 </div>
               )}
 
-              {assessment.treatmentRecommendations && (
+              {assessment.aiAnalysis?.recommendations && assessment.aiAnalysis.recommendations.length > 0 && (
                 <div>
                   <h3 className="font-medium">Treatment Recommendations</h3>
-                  <p className="text-muted-foreground mt-1">{assessment.treatmentRecommendations}</p>
+                  <ul className="list-disc pl-5 mt-2 space-y-1">
+                    {assessment.aiAnalysis.recommendations.map((recommendation, index) => (
+                      <li key={index} className="text-muted-foreground">
+                        {recommendation}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
 
@@ -241,19 +253,14 @@ export default function HealthAssessmentDetails({ params }) {
                 </div>
               )}
 
-              {assessment.images && assessment.images.length > 0 && (
+              {assessment.imageUrl && (
                 <div>
-                  <h3 className="font-medium mb-2">Assessment Images</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {assessment.images.map((image, index) => (
-                      <img
-                        key={index}
-                        src={`http://localhost:5000${image}`}
-                        alt={`Assessment image ${index + 1}`}
-                        className="rounded-md border object-cover aspect-square"
-                      />
-                    ))}
-                  </div>
+                  <h3 className="font-medium mb-2">Assessment Image</h3>
+                  <img
+                    src={`http://localhost:5000${assessment.imageUrl}`}
+                    alt="Assessment image"
+                    className="rounded-md border object-cover max-h-96 w-auto"
+                  />
                 </div>
               )}
             </CardContent>

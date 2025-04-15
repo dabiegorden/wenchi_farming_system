@@ -28,7 +28,10 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination"
-import { Search, Plus, Eye, Trash, Bell, AlertTriangle, Info } from "lucide-react"
+import { Search, Plus, Eye, Trash, Bell, AlertTriangle, Info, Edit, Tag } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
+import { DatePicker } from "@/components/ui/date-picker"
 
 export default function NotificationsManagement() {
   const router = useRouter()
@@ -37,6 +40,12 @@ export default function NotificationsManagement() {
   const [error, setError] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
   const [typeFilter, setTypeFilter] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState("")
+  const [priorityFilter, setPriorityFilter] = useState("")
+  const [sentByMeFilter, setSentByMeFilter] = useState(false)
+  const [unreadOnlyFilter, setUnreadOnlyFilter] = useState(false)
+  const [startDate, setStartDate] = useState(null)
+  const [endDate, setEndDate] = useState(null)
   const [pagination, setPagination] = useState({
     total: 0,
     page: 1,
@@ -50,11 +59,33 @@ export default function NotificationsManagement() {
     title: "",
     message: "",
     type: "info",
-    priority: "normal",
-    targetUsers: [],
+    priority: "medium",
+    category: "system",
+    isGlobal: true,
+    recipients: [],
+    tags: [],
+    actionUrl: "",
+    isActionRequired: false,
+    expiresAt: null,
   })
   const [users, setUsers] = useState([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [currentUser, setCurrentUser] = useState(null)
+
+  const fetchCurrentUser = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/api/auth/user-info", {
+        credentials: "include",
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setCurrentUser(data.data.user)
+      }
+    } catch (err) {
+      console.error("Failed to identify current user:", err)
+    }
+  }
 
   const fetchNotifications = async () => {
     setLoading(true)
@@ -67,6 +98,26 @@ export default function NotificationsManagement() {
 
       if (typeFilter && typeFilter !== "all") {
         url += `&type=${typeFilter}`
+      }
+
+      if (categoryFilter && categoryFilter !== "all") {
+        url += `&category=${categoryFilter}`
+      }
+
+      if (priorityFilter && priorityFilter !== "all") {
+        url += `&priority=${priorityFilter}`
+      }
+
+      if (unreadOnlyFilter) {
+        url += `&unreadOnly=true`
+      }
+
+      if (startDate) {
+        url += `&startDate=${startDate.toISOString().split("T")[0]}`
+      }
+
+      if (endDate) {
+        url += `&endDate=${endDate.toISOString().split("T")[0]}`
       }
 
       const response = await fetch(url, {
@@ -109,9 +160,22 @@ export default function NotificationsManagement() {
   }
 
   useEffect(() => {
-    fetchNotifications()
+    fetchCurrentUser()
     fetchUsers()
-  }, [pagination.page, typeFilter])
+  }, [])
+
+  useEffect(() => {
+    fetchNotifications()
+  }, [
+    pagination.page,
+    typeFilter,
+    categoryFilter,
+    priorityFilter,
+    unreadOnlyFilter,
+    sentByMeFilter,
+    startDate,
+    endDate,
+  ])
 
   const handleSearch = (e) => {
     e.preventDefault()
@@ -148,12 +212,19 @@ export default function NotificationsManagement() {
     setIsSubmitting(true)
 
     try {
+      // Prepare the notification data
+      const notificationData = {
+        ...newNotification,
+        // Convert recipients array to the format expected by the backend
+        recipients: newNotification.isGlobal ? [] : newNotification.recipients,
+      }
+
       const response = await fetch("http://localhost:5000/api/notifications", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(newNotification),
+        body: JSON.stringify(notificationData),
         credentials: "include",
       })
 
@@ -170,8 +241,14 @@ export default function NotificationsManagement() {
         title: "",
         message: "",
         type: "info",
-        priority: "normal",
-        targetUsers: [],
+        priority: "medium",
+        category: "system",
+        isGlobal: true,
+        recipients: [],
+        tags: [],
+        actionUrl: "",
+        isActionRequired: false,
+        expiresAt: null,
       })
       setIsCreateNotificationOpen(false)
 
@@ -195,6 +272,42 @@ export default function NotificationsManagement() {
     })
   }
 
+  const isCreatedByCurrentUser = (notification) => {
+    return currentUser && notification.createdBy && notification.createdBy._id === currentUser._id
+  }
+
+  const handleTagInput = (e) => {
+    if (e.key === "Enter" && e.target.value.trim()) {
+      e.preventDefault()
+      const newTag = e.target.value.trim()
+      if (!newNotification.tags.includes(newTag)) {
+        setNewNotification({
+          ...newNotification,
+          tags: [...newNotification.tags, newTag],
+        })
+      }
+      e.target.value = ""
+    }
+  }
+
+  const removeTag = (tagToRemove) => {
+    setNewNotification({
+      ...newNotification,
+      tags: newNotification.tags.filter((tag) => tag !== tagToRemove),
+    })
+  }
+
+  const clearFilters = () => {
+    setTypeFilter("")
+    setCategoryFilter("")
+    setPriorityFilter("")
+    setSentByMeFilter(false)
+    setUnreadOnlyFilter(false)
+    setStartDate(null)
+    setEndDate(null)
+    setSearchTerm("")
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -209,7 +322,7 @@ export default function NotificationsManagement() {
               Create Notification
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
               <DialogTitle>Create New Notification</DialogTitle>
               <DialogDescription>Create and send a notification to users</DialogDescription>
@@ -251,6 +364,8 @@ export default function NotificationsManagement() {
                         <SelectItem value="info">Information</SelectItem>
                         <SelectItem value="warning">Warning</SelectItem>
                         <SelectItem value="alert">Alert</SelectItem>
+                        <SelectItem value="success">Success</SelectItem>
+                        <SelectItem value="task">Task</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -266,61 +381,136 @@ export default function NotificationsManagement() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="normal">Normal</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
                         <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="urgent">Urgent</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="category">Category</Label>
+                    <Select
+                      value={newNotification.category}
+                      onValueChange={(value) => setNewNotification({ ...newNotification, category: value })}
+                    >
+                      <SelectTrigger id="category">
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="system">System</SelectItem>
+                        <SelectItem value="crop">Crop</SelectItem>
+                        <SelectItem value="inventory">Inventory</SelectItem>
+                        <SelectItem value="land">Land</SelectItem>
+                        <SelectItem value="health">Health</SelectItem>
+                        <SelectItem value="weather">Weather</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="expiresAt">Expires At (Optional)</Label>
+                    <DatePicker
+                      date={newNotification.expiresAt}
+                      setDate={(date) => setNewNotification({ ...newNotification, expiresAt: date })}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+
                 <div className="grid gap-2">
-                  <Label htmlFor="targetUsers">Target Users (Optional)</Label>
-                  <Select
-                    value={newNotification.targetUsers.length === 0 ? "all" : "selected"}
-                    onValueChange={(value) =>
-                      setNewNotification({
-                        ...newNotification,
-                        targetUsers: value === "all" ? [] : newNotification.targetUsers,
-                      })
-                    }
-                  >
-                    <SelectTrigger id="targetUsers">
-                      <SelectValue placeholder="Select target users" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Users</SelectItem>
-                      <SelectItem value="selected">Selected Users</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {newNotification.targetUsers.length > 0 && (
-                    <div className="mt-2">
-                      <p className="text-sm text-muted-foreground mb-1">Selected Users:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {newNotification.targetUsers.map((userId) => {
-                          const user = users.find((u) => u._id === userId)
-                          return (
-                            <div key={userId} className="bg-muted px-2 py-1 rounded-md text-xs flex items-center gap-1">
-                              <span>{user?.name || userId}</span>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setNewNotification({
-                                    ...newNotification,
-                                    targetUsers: newNotification.targetUsers.filter((id) => id !== userId),
-                                  })
-                                }
-                                className="text-muted-foreground hover:text-foreground"
-                              >
-                                &times;
-                              </button>
-                            </div>
-                          )
-                        })}
-                      </div>
+                  <Label htmlFor="actionUrl">Action URL (Optional)</Label>
+                  <Input
+                    id="actionUrl"
+                    value={newNotification.actionUrl}
+                    onChange={(e) => setNewNotification({ ...newNotification, actionUrl: e.target.value })}
+                    placeholder="e.g., /crops/details/123"
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="isActionRequired"
+                    checked={newNotification.isActionRequired}
+                    onCheckedChange={(checked) => setNewNotification({ ...newNotification, isActionRequired: checked })}
+                  />
+                  <Label htmlFor="isActionRequired">Action Required</Label>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="tags">Tags (Press Enter to add)</Label>
+                  <Input id="tags" placeholder="Add tags..." onKeyDown={handleTagInput} />
+                  {newNotification.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {newNotification.tags.map((tag) => (
+                        <Badge key={tag} variant="secondary" className="flex items-center gap-1">
+                          {tag}
+                          <button
+                            type="button"
+                            onClick={() => removeTag(tag)}
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            &times;
+                          </button>
+                        </Badge>
+                      ))}
                     </div>
                   )}
                 </div>
+
+                <div className="grid gap-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="isGlobal"
+                      checked={newNotification.isGlobal}
+                      onCheckedChange={(checked) => setNewNotification({ ...newNotification, isGlobal: checked })}
+                    />
+                    <Label htmlFor="isGlobal">Send to all users</Label>
+                  </div>
+                </div>
+
+                {!newNotification.isGlobal && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="recipients">Select Recipients</Label>
+                    <div className="max-h-40 overflow-y-auto border rounded-md p-2">
+                      {users.length > 0 ? (
+                        users.map((user) => (
+                          <div key={user._id} className="flex items-center space-x-2 py-1">
+                            <Checkbox
+                              id={`user-${user._id}`}
+                              checked={newNotification.recipients.includes(user._id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setNewNotification({
+                                    ...newNotification,
+                                    recipients: [...newNotification.recipients, user._id],
+                                  })
+                                } else {
+                                  setNewNotification({
+                                    ...newNotification,
+                                    recipients: newNotification.recipients.filter((id) => id !== user._id),
+                                  })
+                                }
+                              }}
+                            />
+                            <Label htmlFor={`user-${user._id}`} className="cursor-pointer">
+                              {user.name} ({user.email})
+                            </Label>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-muted-foreground text-sm">Loading users...</p>
+                      )}
+                    </div>
+                    {newNotification.recipients.length > 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        {newNotification.recipients.length} recipient(s) selected
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
               <DialogFooter>
                 <Button type="submit" disabled={isSubmitting}>
@@ -337,7 +527,7 @@ export default function NotificationsManagement() {
           <CardTitle>Notifications</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="flex flex-col space-y-4 mb-6">
             <form onSubmit={handleSearch} className="flex space-x-2">
               <Input
                 placeholder="Search notifications..."
@@ -350,17 +540,72 @@ export default function NotificationsManagement() {
               </Button>
             </form>
 
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="info">Information</SelectItem>
-                <SelectItem value="warning">Warning</SelectItem>
-                <SelectItem value="alert">Alert</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="info">Information</SelectItem>
+                  <SelectItem value="warning">Warning</SelectItem>
+                  <SelectItem value="alert">Alert</SelectItem>
+                  <SelectItem value="success">Success</SelectItem>
+                  <SelectItem value="task">Task</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="system">System</SelectItem>
+                  <SelectItem value="crop">Crop</SelectItem>
+                  <SelectItem value="inventory">Inventory</SelectItem>
+                  <SelectItem value="land">Land</SelectItem>
+                  <SelectItem value="health">Health</SelectItem>
+                  <SelectItem value="weather">Weather</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priorities</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox id="unreadOnly" checked={unreadOnlyFilter} onCheckedChange={setUnreadOnlyFilter} />
+                <Label htmlFor="unreadOnly">Unread only</Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox id="sentByMe" checked={sentByMeFilter} onCheckedChange={setSentByMeFilter} />
+                <Label htmlFor="sentByMe">Sent by me</Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Label>Date range:</Label>
+                <DatePicker date={startDate} setDate={setStartDate} placeholder="Start date" />
+                <span>to</span>
+                <DatePicker date={endDate} setDate={setEndDate} placeholder="End date" />
+              </div>
+
+              <Button variant="outline" size="sm" onClick={clearFilters}>
+                Clear Filters
+              </Button>
+            </div>
           </div>
 
           {error && (
@@ -386,7 +631,11 @@ export default function NotificationsManagement() {
                             ? "bg-blue-500"
                             : notification.type === "warning"
                               ? "bg-amber-500"
-                              : "bg-red-500"
+                              : notification.type === "alert"
+                                ? "bg-red-500"
+                                : notification.type === "success"
+                                  ? "bg-green-500"
+                                  : "bg-purple-500"
                         }`}
                       ></div>
                       <CardContent className="p-4">
@@ -398,7 +647,11 @@ export default function NotificationsManagement() {
                                   ? "bg-blue-100"
                                   : notification.type === "warning"
                                     ? "bg-amber-100"
-                                    : "bg-red-100"
+                                    : notification.type === "alert"
+                                      ? "bg-red-100"
+                                      : notification.type === "success"
+                                        ? "bg-green-100"
+                                        : "bg-purple-100"
                               }`}
                             >
                               {notification.type === "info" ? (
@@ -408,7 +661,11 @@ export default function NotificationsManagement() {
                                       ? "text-blue-600"
                                       : notification.type === "warning"
                                         ? "text-amber-600"
-                                        : "text-red-600"
+                                        : notification.type === "alert"
+                                          ? "text-red-600"
+                                          : notification.type === "success"
+                                            ? "text-green-600"
+                                            : "text-purple-600"
                                   }`}
                                 />
                               ) : notification.type === "warning" ? (
@@ -418,7 +675,25 @@ export default function NotificationsManagement() {
                                       ? "text-blue-600"
                                       : notification.type === "warning"
                                         ? "text-amber-600"
-                                        : "text-red-600"
+                                        : notification.type === "alert"
+                                          ? "text-red-600"
+                                          : notification.type === "success"
+                                            ? "text-green-600"
+                                            : "text-purple-600"
+                                  }`}
+                                />
+                              ) : notification.type === "success" ? (
+                                <Bell
+                                  className={`h-5 w-5 ${
+                                    notification.type === "info"
+                                      ? "text-blue-600"
+                                      : notification.type === "warning"
+                                        ? "text-amber-600"
+                                        : notification.type === "alert"
+                                          ? "text-red-600"
+                                          : notification.type === "success"
+                                            ? "text-green-600"
+                                            : "text-purple-600"
                                   }`}
                                 />
                               ) : (
@@ -428,35 +703,61 @@ export default function NotificationsManagement() {
                                       ? "text-blue-600"
                                       : notification.type === "warning"
                                         ? "text-amber-600"
-                                        : "text-red-600"
+                                        : notification.type === "alert"
+                                          ? "text-red-600"
+                                          : notification.type === "success"
+                                            ? "text-green-600"
+                                            : "text-purple-600"
                                   }`}
                                 />
                               )}
                             </div>
                             <div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <h3 className="font-medium">{notification.title}</h3>
-                                <span
-                                  className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                <Badge
+                                  variant={
                                     notification.priority === "low"
-                                      ? "bg-gray-100 text-gray-800"
-                                      : notification.priority === "normal"
-                                        ? "bg-blue-100 text-blue-800"
-                                        : notification.priority === "high"
-                                          ? "bg-amber-100 text-amber-800"
-                                          : "bg-red-100 text-red-800"
-                                  }`}
+                                      ? "outline"
+                                      : notification.priority === "medium"
+                                        ? "secondary"
+                                        : "destructive"
+                                  }
                                 >
                                   {notification.priority}
-                                </span>
+                                </Badge>
+                                <Badge variant="outline">{notification.category}</Badge>
+                                {notification.isActionRequired && <Badge variant="default">Action Required</Badge>}
+                                {!notification.read && <Badge variant="secondary">Unread</Badge>}
+                                {isCreatedByCurrentUser(notification) && (
+                                  <Badge variant="outline" className="bg-green-100 text-green-800 hover:bg-green-200">
+                                    Sent by me
+                                  </Badge>
+                                )}
                               </div>
                               <p className="text-muted-foreground mt-1">{notification.message}</p>
+                              {notification.tags && notification.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {notification.tags.map((tag) => (
+                                    <Badge key={tag} variant="outline" className="text-xs">
+                                      <Tag className="h-3 w-3 mr-1" />
+                                      {tag}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
                               <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                                 <span>{formatDate(notification.createdAt)}</span>
                                 {notification.createdBy && (
                                   <>
                                     <span>•</span>
                                     <span>By: {notification.createdBy.name}</span>
+                                  </>
+                                )}
+                                {notification.expiresAt && (
+                                  <>
+                                    <span>•</span>
+                                    <span>Expires: {formatDate(notification.expiresAt)}</span>
                                   </>
                                 )}
                               </div>
@@ -468,6 +769,13 @@ export default function NotificationsManagement() {
                                 <Eye className="h-4 w-4" />
                               </Link>
                             </Button>
+                            {isCreatedByCurrentUser(notification) && (
+                              <Button variant="ghost" size="icon" asChild>
+                                <Link href={`/admin/notifications/${notification._id}/edit`}>
+                                  <Edit className="h-4 w-4" />
+                                </Link>
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="icon"

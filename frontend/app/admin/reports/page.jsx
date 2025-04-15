@@ -4,21 +4,10 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
 import {
   Pagination,
   PaginationContent,
@@ -29,7 +18,7 @@ import {
 } from "@/components/ui/pagination"
 import { Plus, Eye, Download, Trash } from "lucide-react"
 
-export default function ReportsManagement() {
+export default function ReportsPage() {
   const router = useRouter()
   const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
@@ -42,25 +31,12 @@ export default function ReportsManagement() {
     pages: 1,
   })
 
-  // New report state
-  const [isGenerateReportOpen, setIsGenerateReportOpen] = useState(false)
-  const [newReportType, setNewReportType] = useState("")
-  const [newReportData, setNewReportData] = useState({
-    title: "",
-    startDate: "",
-    endDate: "",
-    cropId: "",
-    category: "",
-  })
-  const [crops, setCrops] = useState([])
-  const [isGenerating, setIsGenerating] = useState(false)
-
   const fetchReports = async () => {
     setLoading(true)
     try {
       let url = `http://localhost:5000/api/reports?page=${pagination.page}&limit=${pagination.limit}`
 
-      if (typeFilter) {
+      if (typeFilter && typeFilter !== "all") {
         url += `&type=${typeFilter}`
       }
 
@@ -81,31 +57,14 @@ export default function ReportsManagement() {
       })
     } catch (err) {
       setError(err.message)
+      toast.error("Failed to load reports")
     } finally {
       setLoading(false)
     }
   }
 
-  const fetchCrops = async () => {
-    try {
-      const response = await fetch("http://localhost:5000/api/crops?limit=100", {
-        credentials: "include",
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch crops")
-      }
-
-      const data = await response.json()
-      setCrops(data.data.crops)
-    } catch (err) {
-      console.error("Failed to fetch crops:", err)
-    }
-  }
-
   useEffect(() => {
     fetchReports()
-    fetchCrops()
   }, [pagination.page, typeFilter])
 
   const handleDeleteReport = async (reportId) => {
@@ -123,99 +82,12 @@ export default function ReportsManagement() {
         throw new Error("Failed to delete report")
       }
 
-      toast({
-        title: "Success",
-        description: "Report deleted successfully",
-      })
+      toast.success("Report deleted successfully")
 
       // Refresh the reports list
       fetchReports()
     } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: err.message,
-      })
-    }
-  }
-
-  const handleGenerateReport = async () => {
-    setIsGenerating(true)
-    try {
-      // Validate form
-      if (!newReportType || !newReportData.title || !newReportData.startDate || !newReportData.endDate) {
-        throw new Error("Please fill in all required fields")
-      }
-
-      let endpoint = ""
-      const payload = {
-        title: newReportData.title,
-        startDate: newReportData.startDate,
-        endDate: newReportData.endDate,
-      }
-
-      // Add specific fields based on report type
-      switch (newReportType) {
-        case "crop-health":
-          endpoint = "/api/reports/crop-health"
-          if (newReportData.cropId && newReportData.cropId !== "all") {
-            payload.cropId = newReportData.cropId
-          }
-          break
-        case "inventory":
-          endpoint = "/api/reports/inventory"
-          if (newReportData.category && newReportData.category !== "all") {
-            payload.category = newReportData.category
-          }
-          break
-        case "land":
-          endpoint = "/api/reports/land"
-          break
-        default:
-          throw new Error("Invalid report type")
-      }
-
-      const response = await fetch(`http://localhost:5000${endpoint}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-        credentials: "include",
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to generate report")
-      }
-
-      toast({
-        title: "Success",
-        description: "Report generated successfully",
-      })
-
-      // Reset form and close dialog
-      setNewReportType("")
-      setNewReportData({
-        title: "",
-        startDate: "",
-        endDate: "",
-        cropId: "",
-        category: "",
-      })
-      setIsGenerateReportOpen(false)
-
-      // Refresh the reports list
-      fetchReports()
-    } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: err.message,
-      })
-    } finally {
-      setIsGenerating(false)
+      toast.error(err.message || "Failed to delete report")
     }
   }
 
@@ -235,131 +107,12 @@ export default function ReportsManagement() {
           <h1 className="text-3xl font-bold">Reports Management</h1>
           <p className="text-muted-foreground">Generate and manage farm reports</p>
         </div>
-        <Dialog open={isGenerateReportOpen} onOpenChange={setIsGenerateReportOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Generate Report
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Generate New Report</DialogTitle>
-              <DialogDescription>Select the type of report you want to generate</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="reportType">Report Type *</Label>
-                <Select value={newReportType} onValueChange={setNewReportType}>
-                  <SelectTrigger id="reportType">
-                    <SelectValue placeholder="Select report type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="crop-health">Crop Health Report</SelectItem>
-                    <SelectItem value="inventory">Inventory Report</SelectItem>
-                    <SelectItem value="land">Land Usage Report</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {newReportType && (
-                <>
-                  <div className="grid gap-2">
-                    <Label htmlFor="title">Report Title *</Label>
-                    <Input
-                      id="title"
-                      value={newReportData.title}
-                      onChange={(e) => setNewReportData({ ...newReportData, title: e.target.value })}
-                      placeholder="Enter report title"
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="startDate">Start Date *</Label>
-                      <Input
-                        id="startDate"
-                        type="date"
-                        value={newReportData.startDate}
-                        onChange={(e) => setNewReportData({ ...newReportData, startDate: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="endDate">End Date *</Label>
-                      <Input
-                        id="endDate"
-                        type="date"
-                        value={newReportData.endDate}
-                        onChange={(e) => setNewReportData({ ...newReportData, endDate: e.target.value })}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {newReportType === "crop-health" && (
-                    <div className="grid gap-2">
-                      <Label htmlFor="cropId">Crop (Optional)</Label>
-                      <Select
-                        value={newReportData.cropId}
-                        onValueChange={(value) => setNewReportData({ ...newReportData, cropId: value })}
-                      >
-                        <SelectTrigger id="cropId">
-                          <SelectValue placeholder="All crops" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All crops</SelectItem>
-                          {crops.map((crop) => (
-                            <SelectItem key={crop._id} value={crop._id}>
-                              {crop.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-
-                  {newReportType === "inventory" && (
-                    <div className="grid gap-2">
-                      <Label htmlFor="category">Category (Optional)</Label>
-                      <Select
-                        value={newReportData.category}
-                        onValueChange={(value) => setNewReportData({ ...newReportData, category: value })}
-                      >
-                        <SelectTrigger id="category">
-                          <SelectValue placeholder="All categories" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All categories</SelectItem>
-                          <SelectItem value="fertilizer">Fertilizer</SelectItem>
-                          <SelectItem value="pesticide">Pesticide</SelectItem>
-                          <SelectItem value="tool">Tool</SelectItem>
-                          <SelectItem value="seed">Seed</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-            <DialogFooter>
-              <Button
-                onClick={handleGenerateReport}
-                disabled={
-                  isGenerating ||
-                  !newReportType ||
-                  !newReportData.title ||
-                  !newReportData.startDate ||
-                  !newReportData.endDate
-                }
-              >
-                {isGenerating ? "Generating..." : "Generate Report"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button asChild>
+          <Link href="/admin/reports/new">
+            <Plus className="h-4 w-4 mr-2" />
+            Generate Report
+          </Link>
+        </Button>
       </div>
 
       <Card>

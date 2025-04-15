@@ -154,6 +154,7 @@ export default function HealthAssessmentManagement() {
                 <SelectItem value="mild">Mild Issues</SelectItem>
                 <SelectItem value="moderate">Moderate Issues</SelectItem>
                 <SelectItem value="severe">Severe Issues</SelectItem>
+                <SelectItem value="unknown">Unknown</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -190,10 +191,10 @@ export default function HealthAssessmentManagement() {
                           <tr key={assessment._id} className="border-t">
                             <td className="px-4 py-3 text-sm">
                               <div className="flex items-center gap-2">
-                                {assessment.crop?.imageUrl ? (
+                                {assessment.cropId?.imageUrl ? (
                                   <img
-                                    src={`http://localhost:5000${assessment.crop.imageUrl}`}
-                                    alt={assessment.crop.name}
+                                    src={`http://localhost:5000${assessment.cropId.imageUrl}`}
+                                    alt={assessment.cropId.name}
                                     className="h-8 w-8 object-cover rounded-md"
                                   />
                                 ) : (
@@ -201,7 +202,7 @@ export default function HealthAssessmentManagement() {
                                     <Thermometer className="h-4 w-4 text-green-600" />
                                   </div>
                                 )}
-                                <span className="font-medium">{assessment.crop?.name || "Unknown Crop"}</span>
+                                <span className="font-medium">{assessment.cropId?.name || "Unknown Crop"}</span>
                               </div>
                             </td>
                             <td className="px-4 py-3 text-sm">
@@ -213,15 +214,17 @@ export default function HealthAssessmentManagement() {
                                       ? "bg-yellow-100 text-yellow-800"
                                       : assessment.status === "moderate"
                                         ? "bg-orange-100 text-orange-800"
-                                        : "bg-red-100 text-red-800"
+                                        : assessment.status === "severe"
+                                          ? "bg-red-100 text-red-800"
+                                          : "bg-gray-100 text-gray-800"
                                 }`}
                               >
                                 {assessment.status}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-sm">{assessment.condition || "-"}</td>
-                            <td className="px-4 py-3 text-sm">{formatDate(assessment.date)}</td>
-                            <td className="px-4 py-3 text-sm">{assessment.landPlot?.name || "-"}</td>
+                            <td className="px-4 py-3 text-sm">{assessment.aiAnalysis?.disease || "-"}</td>
+                            <td className="px-4 py-3 text-sm">{formatDate(assessment.createdAt)}</td>
+                            <td className="px-4 py-3 text-sm">{assessment.landId?.name || "-"}</td>
                             <td className="px-4 py-3 text-sm">
                               <div className="flex space-x-2">
                                 <Button variant="ghost" size="icon" asChild>

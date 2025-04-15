@@ -59,6 +59,22 @@ const notificationSchema = new mongoose.Schema(
     expiresAt: {
       type: Date,
     },
+    actionUrl: {
+      type: String,
+      trim: true,
+    },
+    image: {
+      type: String,
+      trim: true,
+    },
+    isActionRequired: {
+      type: Boolean,
+      default: false,
+    },
+    tags: {
+      type: [String],
+      default: [],
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -71,6 +87,38 @@ const notificationSchema = new mongoose.Schema(
   { timestamps: true },
 )
 
+// Add index for faster queries
+notificationSchema.index({ isGlobal: 1, isActive: 1 })
+notificationSchema.index({ "recipients.userId": 1, "recipients.read": 1, isActive: 1 })
+notificationSchema.index({ category: 1, createdAt: -1 })
+
+// Add method to check if a notification is expired
+notificationSchema.methods.isExpired = function () {
+  if (!this.expiresAt) return false
+  return new Date() > this.expiresAt
+}
+
+// Add static method to clean up expired notifications
+notificationSchema.statics.cleanupExpired = async function () {
+  const result = await this.updateMany(
+    { expiresAt: { $lt: new Date() }, isActive: true },
+    { $set: { isActive: false } },
+  )
+  return result.modifiedCount
+}
+
+// Add static method to get unread count for a user
+notificationSchema.statics.getUnreadCount = async function (userId) {
+  const count = await this.countDocuments({
+    $or: [
+      { isGlobal: true, isActive: true, "recipients.userId": { $ne: userId } },
+      { "recipients.userId": userId, "recipients.read": false, isActive: true },
+    ],
+  })
+  return count
+}
+
 const Notification = mongoose.model("Notification", notificationSchema)
+
 
 module.exports = Notification

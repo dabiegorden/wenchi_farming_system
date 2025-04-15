@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,20 +9,21 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { toast } from "sonner"
 import { ArrowLeft, Edit, Package, AlertTriangle, Calendar, DollarSign } from "lucide-react"
 
-export default function InventoryItemDetails({ params }) {
-  // Unwrap the params Promise
-  const unwrappedParams = use(params)
-  const itemId = unwrappedParams.id
+export default function InventoryItemDetails() {
+  const params = useParams()
+  const itemId = params.id
 
   const router = useRouter()
   const [item, setItem] = useState(null)
+  const [usageHistory, setUsageHistory] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
   useEffect(() => {
     const fetchItem = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/api/inventory/${itemId}`, {
+        // Updated to use the correct API endpoint
+        const response = await fetch(`http://localhost:5000/api/inventory/items/${itemId}`, {
           credentials: "include",
         })
 
@@ -31,7 +32,15 @@ export default function InventoryItemDetails({ params }) {
         }
 
         const data = await response.json()
-        setItem(data.data.item)
+
+        if (data.success) {
+          setItem(data.data.item)
+          if (data.data.usageHistory) {
+            setUsageHistory(data.data.usageHistory)
+          }
+        } else {
+          throw new Error(data.message || "Failed to fetch inventory item details")
+        }
       } catch (err) {
         setError(err.message)
       } finally {
@@ -39,7 +48,9 @@ export default function InventoryItemDetails({ params }) {
       }
     }
 
-    fetchItem()
+    if (itemId) {
+      fetchItem()
+    }
   }, [itemId])
 
   const handleDeleteItem = async () => {
@@ -48,7 +59,8 @@ export default function InventoryItemDetails({ params }) {
     }
 
     try {
-      const response = await fetch(`http://localhost:5000/api/inventory/${itemId}`, {
+      // Updated to use the correct API endpoint
+      const response = await fetch(`http://localhost:5000/api/inventory/items/${itemId}`, {
         method: "DELETE",
         credentials: "include",
       })
@@ -57,10 +69,16 @@ export default function InventoryItemDetails({ params }) {
         throw new Error("Failed to delete inventory item")
       }
 
-      toast.success("Inventory item deleted successfully")
-      router.push("/admin/inventory")
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success("Inventory item deleted successfully")
+        router.push("/admin/inventory")
+      } else {
+        throw new Error(data.message || "Failed to delete inventory item")
+      }
     } catch (err) {
-      toast.error(err.message)
+      toast.error("Error: " + err.message)
     }
   }
 
@@ -173,17 +191,17 @@ export default function InventoryItemDetails({ params }) {
                 <div className="flex items-start gap-2">
                   <DollarSign className="h-5 w-5 text-green-600 mt-0.5" />
                   <div>
-                    <h3 className="font-medium">Unit Price</h3>
-                    <p className="text-muted-foreground mt-1">${item.unitPrice?.toFixed(2) || "0.00"}</p>
+                    <h3 className="font-medium">Unit Cost</h3>
+                    <p className="text-muted-foreground mt-1">${item.unitCost?.toFixed(2) || "0.00"}</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
                   <div>
-                    <h3 className="font-medium">Low Stock Threshold</h3>
+                    <h3 className="font-medium">Reorder Level</h3>
                     <p className="text-muted-foreground mt-1">
-                      {item.lowStockThreshold} {item.unit}
+                      {item.reorderLevel} {item.unit}
                     </p>
                   </div>
                 </div>
@@ -193,18 +211,16 @@ export default function InventoryItemDetails({ params }) {
                 <div className="flex items-start gap-2">
                   <Calendar className="h-5 w-5 text-blue-600 mt-0.5" />
                   <div>
-                    <h3 className="font-medium">Last Restocked</h3>
-                    <p className="text-muted-foreground mt-1">
-                      {item.lastRestocked ? formatDate(item.lastRestocked) : "Not available"}
-                    </p>
+                    <h3 className="font-medium">Created At</h3>
+                    <p className="text-muted-foreground mt-1">{formatDate(item.createdAt)}</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-2">
                   <Calendar className="h-5 w-5 text-blue-600 mt-0.5" />
                   <div>
-                    <h3 className="font-medium">Created At</h3>
-                    <p className="text-muted-foreground mt-1">{formatDate(item.createdAt)}</p>
+                    <h3 className="font-medium">Updated At</h3>
+                    <p className="text-muted-foreground mt-1">{formatDate(item.updatedAt)}</p>
                   </div>
                 </div>
               </div>
@@ -213,11 +229,24 @@ export default function InventoryItemDetails({ params }) {
                 <div>
                   <h3 className="font-medium">Supplier Information</h3>
                   <div className="mt-2 p-4 bg-muted/20 rounded-md">
-                    <p className="font-medium">{item.supplier.name}</p>
-                    {item.supplier.contactPerson && <p>{item.supplier.contactPerson}</p>}
-                    {item.supplier.email && <p>{item.supplier.email}</p>}
-                    {item.supplier.phone && <p>{item.supplier.phone}</p>}
+                    {typeof item.supplier === "object" ? (
+                      <>
+                        <p className="font-medium">{item.supplier.name}</p>
+                        {item.supplier.contactPerson && <p>{item.supplier.contactPerson}</p>}
+                        {item.supplier.email && <p>{item.supplier.email}</p>}
+                        {item.supplier.phone && <p>{item.supplier.phone}</p>}
+                      </>
+                    ) : (
+                      <p className="font-medium">{item.supplier}</p>
+                    )}
                   </div>
+                </div>
+              )}
+
+              {item.location && (
+                <div>
+                  <h3 className="font-medium">Storage Location</h3>
+                  <p className="text-muted-foreground mt-1">{item.location}</p>
                 </div>
               )}
 
@@ -231,6 +260,42 @@ export default function InventoryItemDetails({ params }) {
           </Card>
         </div>
       </div>
+
+      {usageHistory && usageHistory.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Usage History</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-muted/50">
+                    <th className="px-4 py-3 text-left text-sm font-medium">Date</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Quantity</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Usage Type</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Recorded By</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {usageHistory.map((usage) => (
+                    <tr key={usage._id} className="border-t">
+                      <td className="px-4 py-3 text-sm">{formatDate(usage.createdAt)}</td>
+                      <td className="px-4 py-3 text-sm">
+                        {usage.quantity} {item.unit}
+                      </td>
+                      <td className="px-4 py-3 text-sm capitalize">{usage.usageType}</td>
+                      <td className="px-4 py-3 text-sm">{usage.recordedBy?.name || "Unknown"}</td>
+                      <td className="px-4 py-3 text-sm">{usage.notes || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

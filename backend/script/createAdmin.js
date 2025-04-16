@@ -56,7 +56,7 @@ async function createAdminUser() {
     // Extract database name from URI or use default
     const dbName = process.env.MONGODB_URI.includes('/')
       ? process.env.MONGODB_URI.split('/').pop().split('?')[0]
-      : 'wenchi_farm';
+      : 'wenchiFarm';
     
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGODB_URI, {

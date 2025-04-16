@@ -4,7 +4,7 @@ const { isAuthenticated, isResearcher, isAdmin } = require("../middleware/authMi
 const fs = require("fs")
 const path = require("path")
 const upload = require("../utils/fileUpload")
-const Crop = require("../models/Crop") // Import the model directly
+const Crop = require("../models/Crop")
 
 // Get all crops - accessible to all authenticated users
 router.get("/", isAuthenticated, async (req, res) => {
@@ -60,34 +60,7 @@ router.get("/", isAuthenticated, async (req, res) => {
   }
 })
 
-// Get a single crop by ID
-router.get("/:id", isAuthenticated, async (req, res) => {
-  try {
-    const crop = await Crop.findById(req.params.id)
-
-    if (!crop || !crop.isActive) {
-      return res.status(404).json({
-        success: false,
-        message: "Crop not found",
-      })
-    }
-
-    res.status(200).json({
-      success: true,
-      data: {
-        crop,
-      },
-    })
-  } catch (error) {
-    console.error("Get crop error:", error)
-    res.status(500).json({
-      success: false,
-      message: "Failed to retrieve crop",
-    })
-  }
-})
-
-// Add new crop with image upload - only admin can add new crops to the system
+// Create new crop route - IMPORTANT: This must be placed BEFORE the /:id route
 router.post("/", isAdmin, upload.single("image"), async (req, res) => {
   try {
     const {
@@ -211,6 +184,41 @@ router.post("/", isAdmin, upload.single("image"), async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to add crop",
+    })
+  }
+})
+
+// Get a single crop by ID - This must come AFTER the POST route
+router.get("/:id", isAuthenticated, async (req, res) => {
+  try {
+    // Check if the ID is 'new' and handle it specially
+    if (req.params.id === 'new') {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid crop ID. If you're trying to create a new crop, use POST /api/crops instead.",
+      });
+    }
+    
+    const crop = await Crop.findById(req.params.id)
+
+    if (!crop || !crop.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: "Crop not found",
+      })
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        crop,
+      },
+    })
+  } catch (error) {
+    console.error("Get crop error:", error)
+    res.status(500).json({
+      success: false,
+      message: "Failed to retrieve crop",
     })
   }
 })

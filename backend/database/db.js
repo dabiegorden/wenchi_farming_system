@@ -13,7 +13,7 @@ const connectToDatabase = async () => {
         // Extract database name from URI or use default
         const dbName = process.env.MONGODB_URI.includes('/')
             ? process.env.MONGODB_URI.split('/').pop().split('?')[0]
-            : 'wenchi_farm';
+            : 'wenchiFarm';
             
         await mongoose.connect(process.env.MONGODB_URI, {
             dbName: dbName // Explicitly set the database name

@@ -111,7 +111,7 @@ export default function CropsManagement() {
           <p className="text-muted-foreground">Manage crop varieties and information</p>
         </div>
         <Button asChild>
-          <Link href="/admin/crops/new">
+          <Link href="/admin/crops/create">
             <Plus className="h-4 w-4 mr-2" />
             Add New Crop
           </Link>

@@ -1,22 +1,22 @@
-const { GoogleGenAI } = require("@google/genai")
-const fs = require("fs")
-const path = require("path")
-const dotenv = require("dotenv")
-dotenv.config()
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const fs = require("fs");
+const path = require("path");
+const dotenv = require("dotenv");
+dotenv.config();
 
 // Initialize the Gemini API with your API key
 const initGeminiAI = () => {
-  const apiKey = process.env.GEMINI_API_KEY
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not set in environment variables")
+    throw new Error("GEMINI_API_KEY is not set in environment variables");
   }
-  return new GoogleGenAI({ apiKey })
-}
+  return new GoogleGenerativeAI(apiKey);
+};
 
 // Function to analyze crop health based on symptoms
 const analyzeCropHealthBySymptoms = async (cropName, symptoms) => {
   try {
-    const genAI = initGeminiAI()
+    const genAI = initGeminiAI();
 
     const prompt = ` 
       As an agricultural expert specializing in crop diseases and health assessment, analyze the following symptoms for ${cropName} and provide a detailed assessment.
@@ -45,60 +45,61 @@ const analyzeCropHealthBySymptoms = async (cropName, symptoms) => {
       }
       
       Return ONLY the JSON object without any additional text.
-    `
+    `;
 
-    const response = await genAI.models.generateContent({
-      model: "gemini-1.5-pro",
-      contents: prompt,
-    })
-
-    const text = response.text()
+    // Get the generative model - updated to use gemini-1.5-flash
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    
+    // Generate content
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
 
     // Extract JSON from the response
-    const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/{[\s\S]*?}/)
-    let parsedResponse
+    const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/{[\s\S]*?}/);
+    let parsedResponse;
 
     if (jsonMatch) {
       try {
-        parsedResponse = JSON.parse(jsonMatch[1] || jsonMatch[0])
+        parsedResponse = JSON.parse(jsonMatch[1] || jsonMatch[0]);
       } catch (e) {
-        console.error("JSON parsing error:", e)
+        console.error("JSON parsing error:", e);
         // If JSON parsing fails, attempt to extract JSON more aggressively
-        const potentialJson = text.replace(/```json|```/g, "").trim()
+        const potentialJson = text.replace(/```json|```/g, "").trim();
         try {
-          parsedResponse = JSON.parse(potentialJson)
+          parsedResponse = JSON.parse(potentialJson);
         } catch (e2) {
           // If still fails, return the raw text
-          parsedResponse = { rawResponse: text }
+          parsedResponse = { rawResponse: text };
         }
       }
     } else {
-      parsedResponse = { rawResponse: text }
+      parsedResponse = { rawResponse: text };
     }
 
     return {
       success: true,
       data: parsedResponse,
-    }
+    };
   } catch (error) {
-    console.error("Gemini AI analysis error:", error)
+    console.error("Gemini AI analysis error:", error);
     return {
       success: false,
       error: error.message,
-    }
+    };
   }
-}
+};
 
 // Function to analyze crop health based on image
 const analyzeCropHealthByImage = async (cropName, imagePath) => {
   try {
-    const genAI = initGeminiAI()
+    const genAI = initGeminiAI();
 
     // Read the image file
-    const imageData = fs.readFileSync(imagePath)
+    const imageData = fs.readFileSync(imagePath);
     // Convert the image to a base64 string
-    const imageBase64 = imageData.toString("base64")
-    const mimeType = path.extname(imagePath).toLowerCase() === ".png" ? "image/png" : "image/jpeg"
+    const imageBase64 = imageData.toString("base64");
+    const mimeType = path.extname(imagePath).toLowerCase() === ".png" ? "image/png" : "image/jpeg";
 
     const prompt = ` 
       As an agricultural expert specializing in crop diseases and visual diagnosis, analyze this image of ${cropName} and provide a detailed health assessment.
@@ -124,10 +125,10 @@ const analyzeCropHealthByImage = async (cropName, imagePath) => {
       }
       
       Return ONLY the JSON object without any additional text.
-    `
+    `;
 
-    // Create a model instance
-    const model = genAI.models.get("gemini-pro-vision")
+    // Create a model instance - updated to use gemini-1.5-flash which supports multimodal input
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     // Generate content using the correct format for image data
     const result = await model.generateContent([
@@ -138,50 +139,50 @@ const analyzeCropHealthByImage = async (cropName, imagePath) => {
           data: imageBase64,
         },
       },
-    ])
+    ]);
 
-    const response = await result.response
-    const text = response.text()
+    const response = await result.response;
+    const text = response.text();
 
     // Extract JSON from the response
-    const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/{[\s\S]*?}/)
-    let parsedResponse
+    const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/{[\s\S]*?}/);
+    let parsedResponse;
 
     if (jsonMatch) {
       try {
-        parsedResponse = JSON.parse(jsonMatch[1] || jsonMatch[0])
+        parsedResponse = JSON.parse(jsonMatch[1] || jsonMatch[0]);
       } catch (e) {
-        console.error("JSON parsing error:", e)
+        console.error("JSON parsing error:", e);
         // If JSON parsing fails, attempt to extract JSON more aggressively
-        const potentialJson = text.replace(/```json|```/g, "").trim()
+        const potentialJson = text.replace(/```json|```/g, "").trim();
         try {
-          parsedResponse = JSON.parse(potentialJson)
+          parsedResponse = JSON.parse(potentialJson);
         } catch (e2) {
           // If still fails, return the raw text
-          parsedResponse = { rawResponse: text }
+          parsedResponse = { rawResponse: text };
         }
       }
     } else {
-      parsedResponse = { rawResponse: text }
+      parsedResponse = { rawResponse: text };
     }
 
     return {
       success: true,
       data: parsedResponse,
-    }
+    };
   } catch (error) {
-    console.error("Gemini AI image analysis error:", error)
+    console.error("Gemini AI image analysis error:", error);
     return {
       success: false,
       error: error.message,
-    }
+    };
   }
-}
+};
 
 // Function to get crop recommendations for a land plot
 const getCropRecommendations = async (landData, season) => {
   try {
-    const genAI = initGeminiAI()
+    const genAI = initGeminiAI();
 
     const prompt = ` 
       As an agricultural expert specializing in crop selection and land optimization, recommend suitable crops for a land with the following characteristics:
@@ -222,54 +223,55 @@ const getCropRecommendations = async (landData, season) => {
       
       Provide at least 5 crop recommendations, sorted by suitability score in descending order.
       Return ONLY the JSON object without any additional text.
-    `
+    `;
 
-    const response = await genAI.models.generateContent({
-      model: "gemini-1.5-pro",
-      contents: prompt,
-    })
-
-    const text = response.text()
+    // Get the generative model - updated to use gemini-1.5-flash
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    
+    // Generate content
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
 
     // Extract JSON from the response
-    const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/{[\s\S]*?}/)
-    let parsedResponse
+    const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/{[\s\S]*?}/);
+    let parsedResponse;
 
     if (jsonMatch) {
       try {
-        parsedResponse = JSON.parse(jsonMatch[1] || jsonMatch[0])
+        parsedResponse = JSON.parse(jsonMatch[1] || jsonMatch[0]);
       } catch (e) {
-        console.error("JSON parsing error:", e)
+        console.error("JSON parsing error:", e);
         // If JSON parsing fails, attempt to extract JSON more aggressively
-        const potentialJson = text.replace(/```json|```/g, "").trim()
+        const potentialJson = text.replace(/```json|```/g, "").trim();
         try {
-          parsedResponse = JSON.parse(potentialJson)
+          parsedResponse = JSON.parse(potentialJson);
         } catch (e2) {
           // If still fails, return the raw text
-          parsedResponse = { rawResponse: text }
+          parsedResponse = { rawResponse: text };
         }
       }
     } else {
-      parsedResponse = { rawResponse: text }
+      parsedResponse = { rawResponse: text };
     }
 
     return {
       success: true,
       data: parsedResponse,
-    }
+    };
   } catch (error) {
-    console.error("Gemini AI crop recommendations error:", error)
+    console.error("Gemini AI crop recommendations error:", error);
     return {
       success: false,
       error: error.message,
-    }
+    };
   }
-}
+};
 
 // Function to generate smart notifications based on farm data
 const generateSmartNotifications = async (farmData) => {
   try {
-    const genAI = initGeminiAI()
+    const genAI = initGeminiAI();
 
     const prompt = `
       As an agricultural AI assistant, analyze the following farm data and generate smart notifications that would be helpful for the farm manager:
@@ -303,54 +305,55 @@ const generateSmartNotifications = async (farmData) => {
       
       Generate up to 5 of the most important notifications based on the data.
       Return ONLY the JSON object without any additional text.
-    `
+    `;
 
-    const response = await genAI.models.generateContent({
-      model: "gemini-1.5-pro",
-      contents: prompt,
-    })
-
-    const text = response.text()
+    // Get the generative model - updated to use gemini-1.5-flash
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    
+    // Generate content
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
 
     // Extract JSON from the response
-    const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/{[\s\S]*?}/)
-    let parsedResponse
+    const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/{[\s\S]*?}/);
+    let parsedResponse;
 
     if (jsonMatch) {
       try {
-        parsedResponse = JSON.parse(jsonMatch[1] || jsonMatch[0])
+        parsedResponse = JSON.parse(jsonMatch[1] || jsonMatch[0]);
       } catch (e) {
-        console.error("JSON parsing error:", e)
+        console.error("JSON parsing error:", e);
         // If JSON parsing fails, attempt to extract JSON more aggressively
-        const potentialJson = text.replace(/```json|```/g, "").trim()
+        const potentialJson = text.replace(/```json|```/g, "").trim();
         try {
-          parsedResponse = JSON.parse(potentialJson)
+          parsedResponse = JSON.parse(potentialJson);
         } catch (e2) {
           // If still fails, return the raw text
-          parsedResponse = { rawResponse: text }
+          parsedResponse = { rawResponse: text };
         }
       }
     } else {
-      parsedResponse = { rawResponse: text }
+      parsedResponse = { rawResponse: text };
     }
 
     return {
       success: true,
       data: parsedResponse,
-    }
+    };
   } catch (error) {
-    console.error("Gemini AI smart notifications error:", error)
+    console.error("Gemini AI smart notifications error:", error);
     return {
       success: false,
       error: error.message,
-    }
+    };
   }
-}
+};
 
 // Function to analyze weather data and provide agricultural recommendations
 const analyzeWeatherForAgriculture = async (weatherData, crops) => {
   try {
-    const genAI = initGeminiAI()
+    const genAI = initGeminiAI();
 
     const prompt = `
       As an agricultural meteorologist, analyze the following weather data and provide recommendations for the specified crops:
@@ -382,49 +385,50 @@ const analyzeWeatherForAgriculture = async (weatherData, crops) => {
       }
       
       Return ONLY the JSON object without any additional text.
-    `
+    `;
 
-    const response = await genAI.models.generateContent({
-      model: "gemini-1.5-pro",
-      contents: prompt,
-    })
-
-    const text = response.text()
+    // Get the generative model - updated to use gemini-1.5-flash
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    
+    // Generate content
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
 
     // Extract JSON from the response
-    const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/{[\s\S]*?}/)
-    let parsedResponse
+    const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/{[\s\S]*?}/);
+    let parsedResponse;
 
     if (jsonMatch) {
       try {
-        parsedResponse = JSON.parse(jsonMatch[1] || jsonMatch[0])
+        parsedResponse = JSON.parse(jsonMatch[1] || jsonMatch[0]);
       } catch (e) {
-        console.error("JSON parsing error:", e)
+        console.error("JSON parsing error:", e);
         // If JSON parsing fails, attempt to extract JSON more aggressively
-        const potentialJson = text.replace(/```json|```/g, "").trim()
+        const potentialJson = text.replace(/```json|```/g, "").trim();
         try {
-          parsedResponse = JSON.parse(potentialJson)
+          parsedResponse = JSON.parse(potentialJson);
         } catch (e2) {
           // If still fails, return the raw text
-          parsedResponse = { rawResponse: text }
+          parsedResponse = { rawResponse: text };
         }
       }
     } else {
-      parsedResponse = { rawResponse: text }
+      parsedResponse = { rawResponse: text };
     }
 
     return {
       success: true,
       data: parsedResponse,
-    }
+    };
   } catch (error) {
-    console.error("Gemini AI weather analysis error:", error)
+    console.error("Gemini AI weather analysis error:", error);
     return {
       success: false,
       error: error.message,
-    }
+    };
   }
-}
+};
 
 module.exports = {
   analyzeCropHealthBySymptoms,
@@ -432,4 +436,4 @@ module.exports = {
   getCropRecommendations,
   generateSmartNotifications,
   analyzeWeatherForAgriculture,
-}
+};

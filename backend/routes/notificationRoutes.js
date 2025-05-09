@@ -1,46 +1,26 @@
 const express = require("express")
 const router = express.Router()
-const { isAuthenticated, isAdmin } = require("../middleware/authMiddleware")
-const Notification = require("../models/Notification")
-const User = require("../models/User")
+const { isAuthenticated, isResearcher, isAdmin } = require("../middleware/authMiddleware")
+const Report = require("../models/Report")
+const Crop = require("../models/Crop")
+const Land = require("../models/Land")
+const { InventoryItem, InventoryUsage } = require("../models/Inventory")
+const HealthAssessment = require("../models/Health")
 
-// Get notifications for the current user with improved filtering
+// Get all reports
 router.get("/", isAuthenticated, async (req, res) => {
   try {
-    const { limit = 20, page = 1, unreadOnly = false, category, priority, type, startDate, endDate, search } = req.query
+    const { type, startDate, endDate, sort, limit = 20, page = 1 } = req.query
 
-    // Build base query for user-specific notifications and global notifications
-    const query = {
-      $or: [
-        { isGlobal: true, isActive: true },
-        { "recipients.userId": req.user._id, isActive: true },
-      ],
-    }
+    // Build query
+    const query = { isActive: true }
 
-    // Add filter for unread notifications
-    if (unreadOnly === "true") {
-      query.$or = [
-        { isGlobal: true, isActive: true, "recipients.userId": { $ne: req.user._id } },
-        { "recipients.userId": req.user._id, "recipients.read": false, isActive: true },
-      ]
-    }
-
-    // Add category filter
-    if (category && ["system", "crop", "inventory", "land", "health", "weather", "other"].includes(category)) {
-      query.category = category
-    }
-
-    // Add priority filter
-    if (priority && ["low", "medium", "high"].includes(priority)) {
-      query.priority = priority
-    }
-
-    // Add type filter
-    if (type && ["info", "warning", "alert", "success", "task"].includes(type)) {
+    // Add filters
+    if (type && ["crop", "health", "inventory", "land", "weather", "general"].includes(type)) {
       query.type = type
     }
 
-    // Add date range filter
+    // Date range filter
     if (startDate || endDate) {
       query.createdAt = {}
       if (startDate) {
@@ -54,764 +34,728 @@ router.get("/", isAuthenticated, async (req, res) => {
       }
     }
 
-    // Add search filter
-    if (search) {
-      query.$and = [
-        {
-          $or: [
-            { title: { $regex: search, $options: "i" } },
-            { message: { $regex: search, $options: "i" } },
-            { tags: { $regex: search, $options: "i" } },
-          ],
-        },
-      ]
-    }
-
     // Calculate pagination
     const skip = (Number.parseInt(page) - 1) * Number.parseInt(limit)
 
+    // Build sort options
+    let sortOptions = { createdAt: -1 } // default sort by creation date, newest first
+    if (sort) {
+      const [field, order] = sort.split(":")
+      sortOptions = { [field]: order === "desc" ? -1 : 1 }
+    }
+
     // Execute query with pagination
-    const notifications = await Notification.find(query)
-      .sort({ createdAt: -1 })
+    const reports = await Report.find(query)
+      .sort(sortOptions)
       .skip(skip)
       .limit(Number.parseInt(limit))
       .populate("createdBy", "name email")
 
-    // Process notifications to determine read status for the current user
-    const processedNotifications = notifications.map((notification) => {
-      const notificationObj = notification.toObject()
-
-      // Check if the current user has read this notification
-      const userRecipient = notification.recipients.find(
-        (r) => r.userId && r.userId.toString() === req.user._id.toString(),
-      )
-
-      notificationObj.read = userRecipient ? userRecipient.read : false
-      notificationObj.isExpired = notification.isExpired()
-
-      // Remove recipients array for privacy
-      delete notificationObj.recipients
-
-      return notificationObj
-    })
-
     // Get total count for pagination
-    const totalNotifications = await Notification.countDocuments(query)
-
-    // Get unread count for the user
-    const unreadCount = await Notification.getUnreadCount(req.user._id)
+    const totalReports = await Report.countDocuments(query)
 
     res.status(200).json({
       success: true,
       data: {
-        notifications: processedNotifications,
-        unreadCount,
+        reports,
         pagination: {
-          total: totalNotifications,
+          total: totalReports,
           page: Number.parseInt(page),
           limit: Number.parseInt(limit),
-          pages: Math.ceil(totalNotifications / Number.parseInt(limit)),
+          pages: Math.ceil(totalReports / Number.parseInt(limit)),
         },
       },
     })
   } catch (error) {
-    console.error("Get notifications error:", error)
+    console.error("Get reports error:", error)
     res.status(500).json({
       success: false,
-      message: "Failed to retrieve notifications",
+      message: "Failed to retrieve reports",
     })
   }
 })
 
-// Get a single notification by ID
+// Get a single report by ID
 router.get("/:id", isAuthenticated, async (req, res) => {
   try {
-    const notification = await Notification.findById(req.params.id).populate("createdBy", "name email")
+    const report = await Report.findById(req.params.id).populate("createdBy", "name email")
 
-    if (!notification || !notification.isActive) {
+    if (!report || !report.isActive) {
       return res.status(404).json({
         success: false,
-        message: "Notification not found",
+        message: "Report not found",
       })
     }
-
-    // Check if the user has access to this notification
-    const isGlobalNotification = notification.isGlobal
-    const isRecipient = notification.recipients.some((r) => r.userId && r.userId.toString() === req.user._id.toString())
-
-    if (!isGlobalNotification && !isRecipient && req.user.role !== "admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Not authorized to access this notification",
-      })
-    }
-
-    // Process notification to determine read status for the current user
-    const notificationObj = notification.toObject()
-    const userRecipient = notification.recipients.find(
-      (r) => r.userId && r.userId.toString() === req.user._id.toString(),
-    )
-    notificationObj.read = userRecipient ? userRecipient.read : false
-    notificationObj.isExpired = notification.isExpired()
-
-    // Remove recipients array for privacy
-    delete notificationObj.recipients
 
     res.status(200).json({
       success: true,
       data: {
-        notification: notificationObj,
+        report,
       },
     })
   } catch (error) {
-    console.error("Get notification error:", error)
+    console.error("Get report error:", error)
     res.status(500).json({
       success: false,
-      message: "Failed to retrieve notification",
+      message: "Failed to retrieve report",
     })
   }
 })
 
-// Mark notification as read
-router.patch("/:id/read", isAuthenticated, async (req, res) => {
+// Generate a crop health report
+router.post("/crop-health", isAuthenticated, async (req, res) => {
   try {
-    const notification = await Notification.findById(req.params.id)
-
-    if (!notification || !notification.isActive) {
-      return res.status(404).json({
-        success: false,
-        message: "Notification not found",
-      })
-    }
-
-    // If it's a global notification, add the user to recipients with read=true
-    if (notification.isGlobal) {
-      const existingRecipient = notification.recipients.find(
-        (r) => r.userId && r.userId.toString() === req.user._id.toString(),
-      )
-
-      if (existingRecipient) {
-        existingRecipient.read = true
-        existingRecipient.readAt = new Date()
-      } else {
-        notification.recipients.push({
-          userId: req.user._id,
-          read: true,
-          readAt: new Date(),
-        })
-      }
-    } else {
-      // For user-specific notification, find and update the recipient
-      const recipient = notification.recipients.find((r) => r.userId && r.userId.toString() === req.user._id.toString())
-
-      if (!recipient) {
-        return res.status(403).json({
-          success: false,
-          message: "Not authorized to access this notification",
-        })
-      }
-
-      recipient.read = true
-      recipient.readAt = new Date()
-    }
-
-    await notification.save()
-
-    res.status(200).json({
-      success: true,
-      message: "Notification marked as read",
-    })
-  } catch (error) {
-    console.error("Mark notification as read error:", error)
-    res.status(500).json({
-      success: false,
-      message: "Failed to mark notification as read",
-    })
-  }
-})
-
-// Mark notification as unread
-router.patch("/:id/unread", isAuthenticated, async (req, res) => {
-  try {
-    const notification = await Notification.findById(req.params.id)
-
-    if (!notification || !notification.isActive) {
-      return res.status(404).json({
-        success: false,
-        message: "Notification not found",
-      })
-    }
-
-    // If it's a global notification, add the user to recipients with read=false
-    if (notification.isGlobal) {
-      const existingRecipient = notification.recipients.find(
-        (r) => r.userId && r.userId.toString() === req.user._id.toString(),
-      )
-
-      if (existingRecipient) {
-        existingRecipient.read = false
-        existingRecipient.readAt = null
-      } else {
-        notification.recipients.push({
-          userId: req.user._id,
-          read: false,
-          readAt: null,
-        })
-      }
-    } else {
-      // For user-specific notification, find and update the recipient
-      const recipient = notification.recipients.find((r) => r.userId && r.userId.toString() === req.user._id.toString())
-
-      if (!recipient) {
-        return res.status(403).json({
-          success: false,
-          message: "Not authorized to access this notification",
-        })
-      }
-
-      recipient.read = false
-      recipient.readAt = null
-    }
-
-    await notification.save()
-
-    res.status(200).json({
-      success: true,
-      message: "Notification marked as unread",
-    })
-  } catch (error) {
-    console.error("Mark notification as unread error:", error)
-    res.status(500).json({
-      success: false,
-      message: "Failed to mark notification as unread",
-    })
-  }
-})
-
-// Mark all notifications as read
-router.patch("/read-all", isAuthenticated, async (req, res) => {
-  try {
-    // Get all unread notifications for the user
-    const notifications = await Notification.find({
-      $or: [
-        { isGlobal: true, isActive: true },
-        { "recipients.userId": req.user._id, "recipients.read": false, isActive: true },
-      ],
-    })
-
-    // Update each notification
-    for (const notification of notifications) {
-      if (notification.isGlobal) {
-        const existingRecipient = notification.recipients.find(
-          (r) => r.userId && r.userId.toString() === req.user._id.toString(),
-        )
-
-        if (existingRecipient) {
-          existingRecipient.read = true
-          existingRecipient.readAt = new Date()
-        } else {
-          notification.recipients.push({
-            userId: req.user._id,
-            read: true,
-            readAt: new Date(),
-          })
-        }
-      } else {
-        // For user-specific notification, find and update the recipient
-        const recipient = notification.recipients.find(
-          (r) => r.userId && r.userId.toString() === req.user._id.toString(),
-        )
-
-        if (recipient) {
-          recipient.read = true
-          recipient.readAt = new Date()
-        }
-      }
-
-      await notification.save()
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "All notifications marked as read",
-    })
-  } catch (error) {
-    console.error("Mark all notifications as read error:", error)
-    res.status(500).json({
-      success: false,
-      message: "Failed to mark all notifications as read",
-    })
-  }
-})
-
-// Create a new notification (admin only)
-router.post("/", isAdmin, async (req, res) => {
-  try {
-    const {
-      title,
-      message,
-      type,
-      priority,
-      category,
-      recipients,
-      isGlobal,
-      expiresAt,
-      actionUrl,
-      image,
-      isActionRequired,
-      tags,
-    } = req.body
+    const { title, startDate, endDate, cropId } = req.body
 
     // Validate required fields
-    if (!title || !message) {
+    if (!title || !startDate || !endDate) {
       return res.status(400).json({
         success: false,
-        message: "Title and message are required",
+        message: "Title, start date, and end date are required",
       })
     }
 
-    // Create notification data
-    const notificationData = {
+    // Parse dates
+    const startDateObj = new Date(startDate)
+    const endDateObj = new Date(endDate)
+
+    // Validate date range
+    if (startDateObj >= endDateObj) {
+      return res.status(400).json({
+        success: false,
+        message: "End date must be after start date",
+      })
+    }
+
+    // Build query for health assessments
+    const query = {
+      createdAt: {
+        $gte: startDateObj,
+        $lte: endDateObj,
+      },
+      isActive: true,
+    }
+
+    if (cropId) {
+      query.cropId = cropId
+    }
+
+    // Get health assessments
+    const healthAssessments = await HealthAssessment.find(query)
+      .populate("cropId", "name scientificName")
+      .populate("landId", "name location")
+      .lean()
+
+    // If no data found
+    if (healthAssessments.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No health assessment data found for the specified criteria",
+      })
+    }
+
+    // Process data for the report
+    let reportData = {}
+
+    if (cropId) {
+      // Single crop report
+      const crop = await Crop.findById(cropId)
+      if (!crop) {
+        return res.status(404).json({
+          success: false,
+          message: "Crop not found",
+        })
+      }
+
+      // Group by status
+      const statusCounts = {
+        healthy: 0,
+        mild: 0,
+        moderate: 0,
+        severe: 0,
+        unknown: 0,
+      }
+
+      healthAssessments.forEach((assessment) => {
+        statusCounts[assessment.status] = (statusCounts[assessment.status] || 0) + 1
+      })
+
+      // Get common diseases
+      const diseases = {}
+      healthAssessments.forEach((assessment) => {
+        if (assessment.aiAnalysis && assessment.aiAnalysis.disease) {
+          diseases[assessment.aiAnalysis.disease] = (diseases[assessment.aiAnalysis.disease] || 0) + 1
+        }
+      })
+
+      // Sort diseases by frequency
+      const sortedDiseases = Object.entries(diseases)
+        .sort((a, b) => b[1] - a[1])
+        .map(([disease, count]) => ({ disease, count }))
+
+      reportData = {
+        crop: {
+          id: crop._id,
+          name: crop.name,
+          scientificName: crop.scientificName,
+        },
+        summary: {
+          totalAssessments: healthAssessments.length,
+          statusDistribution: statusCounts,
+          healthIndex: calculateHealthIndex(statusCounts),
+          commonDiseases: sortedDiseases.slice(0, 5),
+        },
+        timeline: generateTimeline(healthAssessments, startDateObj, endDateObj),
+        recommendations: generateRecommendations(healthAssessments),
+      }
+    } else {
+      // Multi-crop report
+      // Group by crop
+      const cropGroups = {}
+      healthAssessments.forEach((assessment) => {
+        if (assessment.cropId) {
+          const cropId = assessment.cropId._id.toString()
+          if (!cropGroups[cropId]) {
+            cropGroups[cropId] = {
+              crop: {
+                id: assessment.cropId._id,
+                name: assessment.cropId.name,
+                scientificName: assessment.cropId.scientificName,
+              },
+              assessments: [],
+              statusCounts: {
+                healthy: 0,
+                mild: 0,
+                moderate: 0,
+                severe: 0,
+                unknown: 0,
+              },
+              diseases: {},
+            }
+          }
+
+          cropGroups[cropId].assessments.push(assessment)
+          cropGroups[cropId].statusCounts[assessment.status] =
+            (cropGroups[cropId].statusCounts[assessment.status] || 0) + 1
+
+          if (assessment.aiAnalysis && assessment.aiAnalysis.disease) {
+            cropGroups[cropId].diseases[assessment.aiAnalysis.disease] =
+              (cropGroups[cropId].diseases[assessment.aiAnalysis.disease] || 0) + 1
+          }
+        }
+      })
+
+      // Process each crop group
+      const crops = Object.values(cropGroups).map((group) => {
+        // Sort diseases by frequency
+        const sortedDiseases = Object.entries(group.diseases)
+          .sort((a, b) => b[1] - a[1])
+          .map(([disease, count]) => ({ disease, count }))
+
+        return {
+          crop: group.crop,
+          summary: {
+            totalAssessments: group.assessments.length,
+            statusDistribution: group.statusCounts,
+            healthIndex: calculateHealthIndex(group.statusCounts),
+            commonDiseases: sortedDiseases.slice(0, 3),
+          },
+        }
+      })
+
+      // Sort crops by health index (ascending - worse crops first)
+      crops.sort((a, b) => a.summary.healthIndex - b.summary.healthIndex)
+
+      reportData = {
+        summary: {
+          totalCrops: crops.length,
+          totalAssessments: healthAssessments.length,
+          dateRange: {
+            start: startDateObj,
+            end: endDateObj,
+          },
+        },
+        crops,
+        recommendations: generateRecommendations(healthAssessments),
+      }
+    }
+
+    // Create the report
+    const report = await Report.create({
       title,
-      message,
+      type: "health",
+      dateRange: {
+        startDate: startDateObj,
+        endDate: endDateObj,
+      },
+      parameters: {
+        cropId,
+      },
+      data: reportData,
       createdBy: req.user._id,
-      isGlobal: isGlobal === true,
-    }
-
-    // Add optional fields if provided
-    if (type && ["info", "warning", "alert", "success", "task"].includes(type)) {
-      notificationData.type = type
-    }
-
-    if (priority && ["low", "medium", "high"].includes(priority)) {
-      notificationData.priority = priority
-    }
-
-    if (category && ["system", "crop", "inventory", "land", "health", "weather", "other"].includes(category)) {
-      notificationData.category = category
-    }
-
-    if (expiresAt) {
-      notificationData.expiresAt = new Date(expiresAt)
-    }
-
-    if (actionUrl) {
-      notificationData.actionUrl = actionUrl
-    }
-
-    if (image) {
-      notificationData.image = image
-    }
-
-    if (isActionRequired !== undefined) {
-      notificationData.isActionRequired = isActionRequired
-    }
-
-    if (tags && Array.isArray(tags)) {
-      notificationData.tags = tags
-    }
-
-    // Add recipients if not global
-    if (!isGlobal && recipients && Array.isArray(recipients)) {
-      notificationData.recipients = recipients.map((userId) => ({
-        userId,
-        read: false,
-      }))
-    }
-
-    // Create the notification
-    const notification = await Notification.create(notificationData)
+    })
 
     res.status(201).json({
       success: true,
-      message: "Notification created successfully",
+      message: "Crop health report generated successfully",
       data: {
-        notification,
+        report,
       },
     })
   } catch (error) {
-    console.error("Create notification error:", error)
+    console.error("Generate crop health report error:", error)
     res.status(500).json({
       success: false,
-      message: "Failed to create notification",
+      message: "Failed to generate crop health report",
     })
   }
 })
 
-// Update a notification (admin only)
-router.put("/:id", isAdmin, async (req, res) => {
+// Generate an inventory report
+router.post("/inventory", isAuthenticated, async (req, res) => {
   try {
-    const {
-      title,
-      message,
-      type,
-      priority,
-      category,
-      recipients,
-      isGlobal,
-      expiresAt,
-      actionUrl,
-      image,
-      isActionRequired,
-      tags,
-    } = req.body
+    const { title, startDate, endDate, category } = req.body
 
-    const notification = await Notification.findById(req.params.id)
-
-    if (!notification || !notification.isActive) {
-      return res.status(404).json({
+    // Validate required fields
+    if (!title || !startDate || !endDate) {
+      return res.status(400).json({
         success: false,
-        message: "Notification not found",
+        message: "Title, start date, and end date are required",
       })
     }
 
-    // Update fields if provided
-    if (title) notification.title = title
-    if (message) notification.message = message
-    if (type && ["info", "warning", "alert", "success", "task"].includes(type)) {
-      notification.type = type
-    }
-    if (priority && ["low", "medium", "high"].includes(priority)) {
-      notification.priority = priority
-    }
-    if (category && ["system", "crop", "inventory", "land", "health", "weather", "other"].includes(category)) {
-      notification.category = category
-    }
-    if (expiresAt) {
-      notification.expiresAt = new Date(expiresAt)
-    }
-    if (actionUrl !== undefined) {
-      notification.actionUrl = actionUrl
-    }
-    if (image !== undefined) {
-      notification.image = image
-    }
-    if (isActionRequired !== undefined) {
-      notification.isActionRequired = isActionRequired
-    }
-    if (tags && Array.isArray(tags)) {
-      notification.tags = tags
+    // Parse dates
+    const startDateObj = new Date(startDate)
+    const endDateObj = new Date(endDate)
+
+    // Validate date range
+    if (startDateObj >= endDateObj) {
+      return res.status(400).json({
+        success: false,
+        message: "End date must be after start date",
+      })
     }
 
-    // Handle global/recipients changes
-    if (isGlobal !== undefined) {
-      notification.isGlobal = isGlobal
+    // Get current inventory items
+    const itemsQuery = { isActive: true }
+    if (category && ["fertilizer", "pesticide", "tool", "seed", "other"].includes(category)) {
+      itemsQuery.category = category
+    }
 
-      // If changing from targeted to global, clear recipients
-      if (isGlobal === true) {
-        notification.recipients = []
+    const inventoryItems = await InventoryItem.find(itemsQuery).lean()
+
+    // Get usage data for the period
+    const usageQuery = {
+      createdAt: {
+        $gte: startDateObj,
+        $lte: endDateObj,
+      },
+    }
+
+    if (category) {
+      // We need to join with items to filter by category
+      const itemIds = inventoryItems.map((item) => item._id)
+      usageQuery.itemId = { $in: itemIds }
+    }
+
+    const usageRecords = await InventoryUsage.find(usageQuery).populate("itemId", "name category unit").lean()
+
+    // Process data for the report
+    const reportData = {
+      summary: {
+        totalItems: inventoryItems.length,
+        totalUsageRecords: usageRecords.length,
+        dateRange: {
+          start: startDateObj,
+          end: endDateObj,
+        },
+      },
+      inventory: {
+        categories: {},
+        lowStockItems: [],
+        totalValue: 0,
+      },
+      usage: {
+        byCategory: {},
+        byType: {},
+        timeline: [],
+      },
+    }
+
+    // Process inventory items
+    inventoryItems.forEach((item) => {
+      // Add to category counts
+      if (!reportData.inventory.categories[item.category]) {
+        reportData.inventory.categories[item.category] = {
+          count: 0,
+          value: 0,
+        }
       }
-      // If changing from global to targeted, need recipients
-      else if (isGlobal === false && (!recipients || !recipients.length)) {
-        return res.status(400).json({
-          success: false,
-          message: "Recipients are required for non-global notifications",
+      reportData.inventory.categories[item.category].count++
+      reportData.inventory.categories[item.category].value += item.quantity * item.unitCost
+
+      // Add to total value
+      reportData.inventory.totalValue += item.quantity * item.unitCost
+
+      // Check for low stock
+      if (item.quantity <= item.reorderLevel) {
+        reportData.inventory.lowStockItems.push({
+          id: item._id,
+          name: item.name,
+          category: item.category,
+          quantity: item.quantity,
+          unit: item.unit,
+          reorderLevel: item.reorderLevel,
         })
       }
-    }
+    })
 
-    // Update recipients if provided and notification is not global
-    if (!notification.isGlobal && recipients && Array.isArray(recipients)) {
-      // Create a map of existing recipients for faster lookup
-      const existingRecipients = new Map()
-      notification.recipients.forEach((recipient) => {
-        if (recipient.userId) {
-          existingRecipients.set(recipient.userId.toString(), recipient)
-        }
-      })
+    // Process usage records
+    usageRecords.forEach((record) => {
+      const category = record.itemId ? record.itemId.category : "unknown"
+      const usageType = record.usageType
+      const date = record.createdAt.toISOString().split("T")[0] // YYYY-MM-DD
 
-      // Create new recipients array
-      const newRecipients = []
-      for (const userId of recipients) {
-        const existing = existingRecipients.get(userId.toString())
-        if (existing) {
-          // Keep existing recipient with read status
-          newRecipients.push(existing)
-        } else {
-          // Add new recipient
-          newRecipients.push({
-            userId,
-            read: false,
-          })
-        }
+      // Add to category usage
+      if (!reportData.usage.byCategory[category]) {
+        reportData.usage.byCategory[category] = 0
       }
+      reportData.usage.byCategory[category] += record.quantity
 
-      notification.recipients = newRecipients
-    }
+      // Add to type usage
+      if (!reportData.usage.byType[usageType]) {
+        reportData.usage.byType[usageType] = 0
+      }
+      reportData.usage.byType[usageType] += record.quantity
 
-    await notification.save()
+      // Add to timeline
+      const timelineEntry = reportData.usage.timeline.find((entry) => entry.date === date)
+      if (timelineEntry) {
+        timelineEntry.usage += record.quantity
+      } else {
+        reportData.usage.timeline.push({
+          date,
+          usage: record.quantity,
+        })
+      }
+    })
 
-    res.status(200).json({
+    // Sort timeline by date
+    reportData.usage.timeline.sort((a, b) => new Date(a.date) - new Date(b.date))
+
+    // Create the report
+    const report = await Report.create({
+      title,
+      type: "inventory",
+      dateRange: {
+        startDate: startDateObj,
+        endDate: endDateObj,
+      },
+      parameters: {
+        category,
+      },
+      data: reportData,
+      createdBy: req.user._id,
+    })
+
+    res.status(201).json({
       success: true,
-      message: "Notification updated successfully",
+      message: "Inventory report generated successfully",
       data: {
-        notification,
+        report,
       },
     })
   } catch (error) {
-    console.error("Update notification error:", error)
+    console.error("Generate inventory report error:", error)
     res.status(500).json({
       success: false,
-      message: "Failed to update notification",
+      message: "Failed to generate inventory report",
     })
   }
 })
 
-// Delete a notification (admin only)
-router.delete("/:id", isAdmin, async (req, res) => {
+// Generate a land usage report
+router.post("/land", isAuthenticated, async (req, res) => {
   try {
-    const notification = await Notification.findById(req.params.id)
+    const { title, startDate, endDate, landId } = req.body
 
-    if (!notification || !notification.isActive) {
+    // Validate required fields
+    if (!title || !startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Title, start date, and end date are required",
+      })
+    }
+
+    // Parse dates
+    const startDateObj = new Date(startDate)
+    const endDateObj = new Date(endDate)
+
+    // Validate date range
+    if (startDateObj >= endDateObj) {
+      return res.status(400).json({
+        success: false,
+        message: "End date must be after start date",
+      })
+    }
+
+    // Get land data
+    const landsQuery = { isActive: true }
+    if (landId) {
+      landsQuery._id = landId
+    }
+
+    const lands = await Land.find(landsQuery).populate("currentCrop", "name").lean()
+
+    // If no data found
+    if (lands.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "Notification not found",
+        message: "No land data found for the specified criteria",
+      })
+    }
+
+    // Process data for the report
+    const reportData = {
+      summary: {
+        totalLands: lands.length,
+        totalArea: lands.reduce((sum, land) => {
+          // Convert all to hectares for consistency
+          let areaInHectares = land.size.value
+          if (land.size.unit === "acre") {
+            areaInHectares = land.size.value * 0.404686 // 1 acre = 0.404686 hectares
+          } else if (land.size.unit === "sqm") {
+            areaInHectares = land.size.value / 10000 // 1 hectare = 10,000 sqm
+          }
+          return sum + areaInHectares
+        }, 0),
+        statusDistribution: {},
+        dateRange: {
+          start: startDateObj,
+          end: endDateObj,
+        },
+      },
+      lands: [],
+      soilMoisture: {
+        average: 0,
+        byLand: [],
+      },
+    }
+
+    // Process each land
+    let totalMoisture = 0
+    let landsWithMoisture = 0
+
+    lands.forEach((land) => {
+      // Add to status counts
+      reportData.summary.statusDistribution[land.status] = (reportData.summary.statusDistribution[land.status] || 0) + 1
+
+      // Convert area to hectares
+      let areaInHectares = land.size.value
+      if (land.size.unit === "acre") {
+        areaInHectares = land.size.value * 0.404686
+      } else if (land.size.unit === "sqm") {
+        areaInHectares = land.size.value / 10000
+      }
+
+      // Add land details
+      reportData.lands.push({
+        id: land._id,
+        name: land.name,
+        location: land.location,
+        size: {
+          value: land.size.value,
+          unit: land.size.unit,
+          hectares: areaInHectares,
+        },
+        status: land.status,
+        currentCrop: land.currentCrop ? land.currentCrop.name : null,
+        soilType: land.soilType,
+        soilPh: land.soilPh,
+        soilMoisture: land.soilMoisture ? land.soilMoisture.value : null,
+      })
+
+      // Add to soil moisture calculations
+      if (land.soilMoisture && land.soilMoisture.value !== null) {
+        totalMoisture += land.soilMoisture.value
+        landsWithMoisture++
+
+        reportData.soilMoisture.byLand.push({
+          id: land._id,
+          name: land.name,
+          moisture: land.soilMoisture.value,
+          lastUpdated: land.soilMoisture.lastUpdated,
+        })
+      }
+    })
+
+    // Calculate average soil moisture
+    reportData.soilMoisture.average = landsWithMoisture > 0 ? totalMoisture / landsWithMoisture : 0
+
+    // Sort lands by size (largest first)
+    reportData.lands.sort((a, b) => b.size.hectares - a.size.hectares)
+
+    // Create the report
+    const report = await Report.create({
+      title,
+      type: "land",
+      dateRange: {
+        startDate: startDateObj,
+        endDate: endDateObj,
+      },
+      parameters: {
+        landId,
+      },
+      data: reportData,
+      createdBy: req.user._id,
+    })
+
+    res.status(201).json({
+      success: true,
+      message: "Land usage report generated successfully",
+      data: {
+        report,
+      },
+    })
+  } catch (error) {
+    console.error("Generate land report error:", error)
+    res.status(500).json({
+      success: false,
+      message: "Failed to generate land report",
+    })
+  }
+})
+
+// Delete a report (soft delete)
+router.delete("/:id", isAuthenticated, async (req, res) => {
+  try {
+    const report = await Report.findById(req.params.id)
+
+    if (!report || !report.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: "Report not found",
+      })
+    }
+
+    // Check if user is authorized to delete
+    if (report.createdBy.toString() !== req.user._id.toString() && req.user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to delete this report",
       })
     }
 
     // Soft delete by setting isActive to false
-    notification.isActive = false
-    await notification.save()
+    report.isActive = false
+    await report.save()
 
     res.status(200).json({
       success: true,
-      message: "Notification deleted successfully",
+      message: "Report deleted successfully",
     })
   } catch (error) {
-    console.error("Delete notification error:", error)
+    console.error("Delete report error:", error)
     res.status(500).json({
       success: false,
-      message: "Failed to delete notification",
+      message: "Failed to delete report",
     })
   }
 })
 
-// Hard delete a notification (admin only)
-router.delete("/:id/permanent", isAdmin, async (req, res) => {
-  try {
-    const notification = await Notification.findById(req.params.id)
+// Helper function to calculate health index (0-100, higher is better)
+function calculateHealthIndex(statusCounts) {
+  const total = Object.values(statusCounts).reduce((sum, count) => sum + count, 0)
+  if (total === 0) return 0
 
-    if (!notification) {
-      return res.status(404).json({
-        success: false,
-        message: "Notification not found",
-      })
-    }
-
-    // Hard delete
-    await Notification.findByIdAndDelete(req.params.id)
-
-    res.status(200).json({
-      success: true,
-      message: "Notification permanently deleted",
-    })
-  } catch (error) {
-    console.error("Hard delete notification error:", error)
-    res.status(500).json({
-      success: false,
-      message: "Failed to permanently delete notification",
-    })
+  // Weighted calculation
+  const weights = {
+    healthy: 100,
+    mild: 75,
+    moderate: 50,
+    severe: 0,
+    unknown: 50,
   }
-})
 
-// Cleanup expired notifications (admin only)
-router.post("/cleanup-expired", isAdmin, async (req, res) => {
-  try {
-    const count = await Notification.cleanupExpired()
-
-    res.status(200).json({
-      success: true,
-      message: `${count} expired notifications cleaned up`,
-      data: {
-        count,
-      },
-    })
-  } catch (error) {
-    console.error("Cleanup expired notifications error:", error)
-    res.status(500).json({
-      success: false,
-      message: "Failed to cleanup expired notifications",
-    })
+  let weightedSum = 0
+  for (const [status, count] of Object.entries(statusCounts)) {
+    weightedSum += weights[status] * count
   }
-})
 
-// Get notification statistics (admin only)
-router.get("/stats", isAdmin, async (req, res) => {
-  try {
-    // Get counts by category
-    const categoryCounts = await Notification.aggregate([
-      { $match: { isActive: true } },
-      { $group: { _id: "$category", count: { $sum: 1 } } },
-    ])
+  return Math.round(weightedSum / total)
+}
 
-    // Get counts by type
-    const typeCounts = await Notification.aggregate([
-      { $match: { isActive: true } },
-      { $group: { _id: "$type", count: { $sum: 1 } } },
-    ])
-
-    // Get counts by priority
-    const priorityCounts = await Notification.aggregate([
-      { $match: { isActive: true } },
-      { $group: { _id: "$priority", count: { $sum: 1 } } },
-    ])
-
-    // Get global vs targeted counts
-    const globalCount = await Notification.countDocuments({
-      isActive: true,
-      isGlobal: true,
-    })
-    const targetedCount = await Notification.countDocuments({
-      isActive: true,
-      isGlobal: false,
-    })
-
-    // Get read vs unread counts
-    const readCount = await Notification.aggregate([
-      { $match: { isActive: true } },
-      { $unwind: "$recipients" },
-      { $match: { "recipients.read": true } },
-      { $group: { _id: null, count: { $sum: 1 } } },
-    ])
-
-    const unreadCount = await Notification.aggregate([
-      { $match: { isActive: true } },
-      { $unwind: "$recipients" },
-      { $match: { "recipients.read": false } },
-      { $group: { _id: null, count: { $sum: 1 } } },
-    ])
-
-    // Format the results
-    const stats = {
-      total: await Notification.countDocuments({ isActive: true }),
-      byCategory: Object.fromEntries(categoryCounts.map((item) => [item._id || "uncategorized", item.count])),
-      byType: Object.fromEntries(typeCounts.map((item) => [item._id || "unknown", item.count])),
-      byPriority: Object.fromEntries(priorityCounts.map((item) => [item._id || "unknown", item.count])),
-      byDelivery: {
-        global: globalCount,
-        targeted: targetedCount,
-      },
-      byReadStatus: {
-        read: readCount.length > 0 ? readCount[0].count : 0,
-        unread: unreadCount.length > 0 ? unreadCount[0].count : 0,
+// Helper function to generate timeline data
+function generateTimeline(assessments, startDate, endDate) {
+  // Create a map of dates within the range
+  const timeline = {}
+  const currentDate = new Date(startDate)
+  while (currentDate <= endDate) {
+    const dateString = currentDate.toISOString().split("T")[0] // YYYY-MM-DD
+    timeline[dateString] = {
+      date: dateString,
+      count: 0,
+      statuses: {
+        healthy: 0,
+        mild: 0,
+        moderate: 0,
+        severe: 0,
+        unknown: 0,
       },
     }
-
-    res.status(200).json({
-      success: true,
-      data: {
-        stats,
-      },
-    })
-  } catch (error) {
-    console.error("Get notification stats error:", error)
-    res.status(500).json({
-      success: false,
-      message: "Failed to retrieve notification statistics",
-    })
+    currentDate.setDate(currentDate.getDate() + 1)
   }
-})
 
-// Send notification to all users (admin only)
-router.post("/broadcast", isAdmin, async (req, res) => {
-  try {
-    const {
-      title,
-      message,
-      type = "info",
-      priority = "medium",
-      category = "system",
-      expiresAt,
-      actionUrl,
-      image,
-      isActionRequired = false,
-      tags = [],
-      roles = [], // Optional: target specific roles
-    } = req.body
-
-    // Validate required fields
-    if (!title || !message) {
-      return res.status(400).json({
-        success: false,
-        message: "Title and message are required",
-      })
+  // Populate with assessment data
+  assessments.forEach((assessment) => {
+    const dateString = assessment.createdAt.toISOString().split("T")[0]
+    if (timeline[dateString]) {
+      timeline[dateString].count++
+      timeline[dateString].statuses[assessment.status]++
     }
+  })
 
-    let notificationData
+  // Convert to array and sort by date
+  return Object.values(timeline).sort((a, b) => new Date(a.date) - new Date(b.date))
+}
 
-    // If roles are specified, find users with those roles
-    if (roles && roles.length > 0) {
-      const users = await User.find({ role: { $in: roles }, isActive: true })
+// Helper function to generate recommendations based on health assessments
+function generateRecommendations(assessments) {
+  // Extract common diseases and their recommendations
+  const diseaseRecommendations = {}
 
-      if (users.length === 0) {
-        return res.status(404).json({
-          success: false,
-          message: "No active users found with the specified roles",
+  assessments.forEach((assessment) => {
+    if (assessment.aiAnalysis && assessment.aiAnalysis.disease && assessment.aiAnalysis.recommendations) {
+      const disease = assessment.aiAnalysis.disease
+
+      if (!diseaseRecommendations[disease]) {
+        diseaseRecommendations[disease] = {
+          count: 0,
+          recommendations: [],
+        }
+      }
+
+      diseaseRecommendations[disease].count++
+
+      // Add unique recommendations
+      if (Array.isArray(assessment.aiAnalysis.recommendations)) {
+        assessment.aiAnalysis.recommendations.forEach((rec) => {
+          if (!diseaseRecommendations[disease].recommendations.includes(rec)) {
+            diseaseRecommendations[disease].recommendations.push(rec)
+          }
         })
       }
+    }
+  })
 
-      // Create a targeted notification for these users
-      notificationData = {
-        title,
-        message,
-        type,
-        priority,
-        category,
-        isGlobal: false,
-        recipients: users.map((user) => ({
-          userId: user._id,
-          read: false,
-        })),
-        createdBy: req.user._id,
-      }
-    } else {
-      // Create a global notification for all users
-      notificationData = {
-        title,
-        message,
-        type,
-        priority,
-        category,
-        isGlobal: true,
-        createdBy: req.user._id,
-      }
-    }
-
-    // Add optional fields
-    if (expiresAt) {
-      notificationData.expiresAt = new Date(expiresAt)
-    }
-    if (actionUrl) {
-      notificationData.actionUrl = actionUrl
-    }
-    if (image) {
-      notificationData.image = image
-    }
-    if (isActionRequired !== undefined) {
-      notificationData.isActionRequired = isActionRequired
-    }
-    if (tags && Array.isArray(tags)) {
-      notificationData.tags = tags
-    }
-
-    // Create the notification
-    const notification = await Notification.create(notificationData)
-
-    res.status(201).json({
-      success: true,
-      message: "Broadcast notification sent successfully",
-      data: {
-        notification,
-        recipientCount: roles && roles.length > 0 ? notification.recipients.length : "All users (global)",
-      },
-    })
-  } catch (error) {
-    console.error("Broadcast notification error:", error)
-    res.status(500).json({
-      success: false,
-      message: "Failed to send broadcast notification",
-    })
-  }
-})
+  // Sort by frequency and format
+  return Object.entries(diseaseRecommendations)
+    .sort((a, b) => b[1].count - a[1].count)
+    .map(([disease, data]) => ({
+      disease,
+      occurrences: data.count,
+      recommendations: data.recommendations,
+    }))
+}
 
 module.exports = router

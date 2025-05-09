@@ -316,210 +316,230 @@ export default function NotificationsManagement() {
           <p className="text-muted-foreground">Send and manage system notifications</p>
         </div>
         <Dialog open={isCreateNotificationOpen} onOpenChange={setIsCreateNotificationOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Notification
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>Create New Notification</DialogTitle>
-              <DialogDescription>Create and send a notification to users</DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleCreateNotification}>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="title">Title *</Label>
-                  <Input
-                    id="title"
-                    value={newNotification.title}
-                    onChange={(e) => setNewNotification({ ...newNotification, title: e.target.value })}
-                    required
-                  />
-                </div>
+  <DialogTrigger asChild>
+    <Button className="bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg flex items-center gap-2 px-4 py-2 transition-colors">
+      <Plus className="h-4 w-4" />
+      Create Notification
+    </Button>
+  </DialogTrigger>
+  <DialogContent className="sm:max-w-[600px] bg-white rounded-xl shadow-lg border-0">
+    <DialogHeader className="pb-2">
+      <DialogTitle className="text-xl font-semibold text-gray-800">Create New Notification</DialogTitle>
+      <DialogDescription className="text-gray-500">Create and send a notification to users</DialogDescription>
+    </DialogHeader>
+    <form onSubmit={handleCreateNotification}>
+      <div className="grid gap-5 py-4">
+        <div className="grid gap-2">
+          <Label htmlFor="title" className="font-medium text-gray-700">Title <span className="text-red-500">*</span></Label>
+          <Input
+            id="title"
+            value={newNotification.title}
+            onChange={(e) => setNewNotification({ ...newNotification, title: e.target.value })}
+            required
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="message">Message *</Label>
-                  <Textarea
-                    id="message"
-                    value={newNotification.message}
-                    onChange={(e) => setNewNotification({ ...newNotification, message: e.target.value })}
-                    rows={3}
-                    required
-                  />
-                </div>
+        <div className="grid gap-2">
+          <Label htmlFor="message" className="font-medium text-gray-700">Message <span className="text-red-500">*</span></Label>
+          <Textarea
+            id="message"
+            value={newNotification.message}
+            onChange={(e) => setNewNotification({ ...newNotification, message: e.target.value })}
+            rows={3}
+            required
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y"
+          />
+        </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="type">Type</Label>
-                    <Select
-                      value={newNotification.type}
-                      onValueChange={(value) => setNewNotification({ ...newNotification, type: value })}
-                    >
-                      <SelectTrigger id="type">
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="info">Information</SelectItem>
-                        <SelectItem value="warning">Warning</SelectItem>
-                        <SelectItem value="alert">Alert</SelectItem>
-                        <SelectItem value="success">Success</SelectItem>
-                        <SelectItem value="task">Task</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="type" className="font-medium text-gray-700">Type</Label>
+            <Select
+              value={newNotification.type}
+              onValueChange={(value) => setNewNotification({ ...newNotification, type: value })}
+            >
+              <SelectTrigger id="type" className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent className="bg-white rounded-lg shadow-lg border-0">
+                <SelectItem value="info" className="hover:bg-blue-50">Information</SelectItem>
+                <SelectItem value="warning" className="hover:bg-blue-50">Warning</SelectItem>
+                <SelectItem value="alert" className="hover:bg-blue-50">Alert</SelectItem>
+                <SelectItem value="success" className="hover:bg-blue-50">Success</SelectItem>
+                <SelectItem value="task" className="hover:bg-blue-50">Task</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-                  <div className="grid gap-2">
-                    <Label htmlFor="priority">Priority</Label>
-                    <Select
-                      value={newNotification.priority}
-                      onValueChange={(value) => setNewNotification({ ...newNotification, priority: value })}
-                    >
-                      <SelectTrigger id="priority">
-                        <SelectValue placeholder="Select priority" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+          <div className="grid gap-2">
+            <Label htmlFor="priority" className="font-medium text-gray-700">Priority</Label>
+            <Select
+              value={newNotification.priority}
+              onValueChange={(value) => setNewNotification({ ...newNotification, priority: value })}
+            >
+              <SelectTrigger id="priority" className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <SelectValue placeholder="Select priority" />
+              </SelectTrigger>
+              <SelectContent className="bg-white rounded-lg shadow-lg border-0">
+                <SelectItem value="low" className="hover:bg-blue-50">Low</SelectItem>
+                <SelectItem value="medium" className="hover:bg-blue-50">Medium</SelectItem>
+                <SelectItem value="high" className="hover:bg-blue-50">High</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="category">Category</Label>
-                    <Select
-                      value={newNotification.category}
-                      onValueChange={(value) => setNewNotification({ ...newNotification, category: value })}
-                    >
-                      <SelectTrigger id="category">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="system">System</SelectItem>
-                        <SelectItem value="crop">Crop</SelectItem>
-                        <SelectItem value="inventory">Inventory</SelectItem>
-                        <SelectItem value="land">Land</SelectItem>
-                        <SelectItem value="health">Health</SelectItem>
-                        <SelectItem value="weather">Weather</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="category" className="font-medium text-gray-700">Category</Label>
+            <Select
+              value={newNotification.category}
+              onValueChange={(value) => setNewNotification({ ...newNotification, category: value })}
+            >
+              <SelectTrigger id="category" className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent className="bg-white rounded-lg shadow-lg border-0">
+                <SelectItem value="system" className="hover:bg-blue-50">System</SelectItem>
+                <SelectItem value="crop" className="hover:bg-blue-50">Crop</SelectItem>
+                <SelectItem value="inventory" className="hover:bg-blue-50">Inventory</SelectItem>
+                <SelectItem value="land" className="hover:bg-blue-50">Land</SelectItem>
+                <SelectItem value="health" className="hover:bg-blue-50">Health</SelectItem>
+                <SelectItem value="weather" className="hover:bg-blue-50">Weather</SelectItem>
+                <SelectItem value="other" className="hover:bg-blue-50">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-                  <div className="grid gap-2">
-                    <Label htmlFor="expiresAt">Expires At (Optional)</Label>
-                    <DatePicker
-                      date={newNotification.expiresAt}
-                      setDate={(date) => setNewNotification({ ...newNotification, expiresAt: date })}
-                      className="w-full"
-                    />
-                  </div>
-                </div>
+          <div className="grid gap-2">
+            <Label htmlFor="expiresAt" className="font-medium text-gray-700">Expires At <span className="text-gray-500 text-sm">(Optional)</span></Label>
+            <DatePicker
+              date={newNotification.expiresAt}
+              setDate={(date) => setNewNotification({ ...newNotification, expiresAt: date })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+        </div>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="actionUrl">Action URL (Optional)</Label>
-                  <Input
-                    id="actionUrl"
-                    value={newNotification.actionUrl}
-                    onChange={(e) => setNewNotification({ ...newNotification, actionUrl: e.target.value })}
-                    placeholder="e.g., /crops/details/123"
-                  />
-                </div>
+        <div className="grid gap-2">
+          <Label htmlFor="actionUrl" className="font-medium text-gray-700">Action URL <span className="text-gray-500 text-sm">(Optional)</span></Label>
+          <Input
+            id="actionUrl"
+            value={newNotification.actionUrl}
+            onChange={(e) => setNewNotification({ ...newNotification, actionUrl: e.target.value })}
+            placeholder="e.g., /crops/details/123"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
 
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="isActionRequired"
-                    checked={newNotification.isActionRequired}
-                    onCheckedChange={(checked) => setNewNotification({ ...newNotification, isActionRequired: checked })}
-                  />
-                  <Label htmlFor="isActionRequired">Action Required</Label>
-                </div>
+        <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded-lg">
+          <Checkbox
+            id="isActionRequired"
+            checked={newNotification.isActionRequired}
+            onCheckedChange={(checked) => setNewNotification({ ...newNotification, isActionRequired: checked })}
+            className="text-blue-600 focus:ring-blue-500"
+          />
+          <Label htmlFor="isActionRequired" className="text-gray-700 cursor-pointer">Action Required</Label>
+        </div>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="tags">Tags (Press Enter to add)</Label>
-                  <Input id="tags" placeholder="Add tags..." onKeyDown={handleTagInput} />
-                  {newNotification.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {newNotification.tags.map((tag) => (
-                        <Badge key={tag} variant="secondary" className="flex items-center gap-1">
-                          {tag}
-                          <button
-                            type="button"
-                            onClick={() => removeTag(tag)}
-                            className="text-muted-foreground hover:text-foreground"
-                          >
-                            &times;
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
+        <div className="grid gap-2">
+          <Label htmlFor="tags" className="font-medium text-gray-700">Tags <span className="text-gray-500 text-sm">(Press Enter to add)</span></Label>
+          <Input 
+            id="tags" 
+            placeholder="Add tags..." 
+            onKeyDown={handleTagInput}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+          />
+          {newNotification.tags && newNotification.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {newNotification.tags.map((tag) => (
+                <Badge key={tag} variant="secondary" className="bg-blue-100 text-blue-800 flex items-center gap-1 px-3 py-1 rounded-full">
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={() => removeTag(tag)}
+                    className="text-blue-700 hover:text-blue-900 font-bold ml-1"
+                  >
+                    &times;
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
+        </div>
 
-                <div className="grid gap-2">
-                  <div className="flex items-center space-x-2">
+        <div className="grid gap-2">
+          <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded-lg">
+            <Checkbox
+              id="isGlobal"
+              checked={newNotification.isGlobal}
+              onCheckedChange={(checked) => setNewNotification({ ...newNotification, isGlobal: checked })}
+              className="text-blue-600 focus:ring-blue-500"
+            />
+            <Label htmlFor="isGlobal" className="text-gray-700 cursor-pointer">Send to all users</Label>
+          </div>
+        </div>
+
+        {!newNotification.isGlobal && (
+          <div className="grid gap-2">
+            <Label htmlFor="recipients" className="font-medium text-gray-700">Select Recipients</Label>
+            <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-lg p-3 bg-white">
+              {users && users.length > 0 ? (
+                users.map((user) => (
+                  <div key={user._id} className="flex items-center space-x-2 py-1.5 hover:bg-gray-50 px-2 rounded">
                     <Checkbox
-                      id="isGlobal"
-                      checked={newNotification.isGlobal}
-                      onCheckedChange={(checked) => setNewNotification({ ...newNotification, isGlobal: checked })}
+                      id={`user-${user._id}`}
+                      checked={newNotification.recipients.includes(user._id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setNewNotification({
+                            ...newNotification,
+                            recipients: [...newNotification.recipients, user._id],
+                          })
+                        } else {
+                          setNewNotification({
+                            ...newNotification,
+                            recipients: newNotification.recipients.filter((id) => id !== user._id),
+                          })
+                        }
+                      }}
+                      className="text-blue-600 focus:ring-blue-500"
                     />
-                    <Label htmlFor="isGlobal">Send to all users</Label>
+                    <Label htmlFor={`user-${user._id}`} className="cursor-pointer text-gray-800">
+                      {user.name} <span className="text-gray-500">({user.email})</span>
+                    </Label>
                   </div>
-                </div>
-
-                {!newNotification.isGlobal && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="recipients">Select Recipients</Label>
-                    <div className="max-h-40 overflow-y-auto border rounded-md p-2">
-                      {users.length > 0 ? (
-                        users.map((user) => (
-                          <div key={user._id} className="flex items-center space-x-2 py-1">
-                            <Checkbox
-                              id={`user-${user._id}`}
-                              checked={newNotification.recipients.includes(user._id)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setNewNotification({
-                                    ...newNotification,
-                                    recipients: [...newNotification.recipients, user._id],
-                                  })
-                                } else {
-                                  setNewNotification({
-                                    ...newNotification,
-                                    recipients: newNotification.recipients.filter((id) => id !== user._id),
-                                  })
-                                }
-                              }}
-                            />
-                            <Label htmlFor={`user-${user._id}`} className="cursor-pointer">
-                              {user.name} ({user.email})
-                            </Label>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-muted-foreground text-sm">Loading users...</p>
-                      )}
-                    </div>
-                    {newNotification.recipients.length > 0 && (
-                      <p className="text-sm text-muted-foreground">
-                        {newNotification.recipients.length} recipient(s) selected
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-              <DialogFooter>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Sending..." : "Send Notification"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                ))
+              ) : (
+                <p className="text-gray-500 text-sm py-2 italic">Loading users...</p>
+              )}
+            </div>
+            {newNotification.recipients && newNotification.recipients.length > 0 && (
+              <p className="text-sm text-gray-500 mt-1">
+                {newNotification.recipients.length} recipient(s) selected
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+      <DialogFooter className="pt-2 border-t border-gray-100">
+        <Button 
+          type="submit" 
+          disabled={isSubmitting}
+          className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg px-4 py-2 transition-colors"
+        >
+          {isSubmitting ? (
+            <span className="flex items-center gap-2">
+              <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+              Sending...
+            </span>
+          ) : "Send Notification"}
+        </Button>
+      </DialogFooter>
+    </form>
+  </DialogContent>
+</Dialog>
       </div>
 
       <Card>
@@ -622,7 +642,7 @@ export default function NotificationsManagement() {
           ) : (
             <>
               <div className="space-y-4">
-                {notifications.length > 0 ? (
+                {notifications && notifications.length > 0 ? (
                   notifications.map((notification) => (
                     <Card key={notification._id} className="overflow-hidden">
                       <div

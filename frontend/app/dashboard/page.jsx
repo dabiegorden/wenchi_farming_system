@@ -213,7 +213,7 @@ export default function UserDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-200">
+    <div className="min-h-screen bg-gray-200 pb-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-6 bg-green-600 px-4 border-b border-green-600">
           <h1 className="text-3xl font-bold text-gray-50">Wenchi Farm Institute</h1>
@@ -312,17 +312,17 @@ export default function UserDashboard() {
           <div className="bg-white shadow rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-gray-800">Crops</h2>
-              <Link href="/crops" className="text-sm text-green-600 hover:text-green-800">
+              <Link href="/dashboard/crops" className="text-sm text-green-600 hover:text-green-800">
                 View Crops
               </Link>
             </div>
             <p className="text-gray-600">View crop information and planting schedules</p>
             <div className="mt-4">
               <Link
-                href="/crops/calendar"
+                href="/dashboard/crops"
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
               >
-                View Planting Calendar
+                View Crops
               </Link>
             </div>
           </div>
@@ -331,17 +331,93 @@ export default function UserDashboard() {
           <div className="bg-white shadow rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-gray-800">Land Management</h2>
-              <Link href="/land" className="text-sm text-green-600 hover:text-green-800">
+              <Link href="/dashboard/lands" className="text-sm text-green-600 hover:text-green-800">
                 View Fields
               </Link>
             </div>
             <p className="text-gray-600">View field information and crop assignments</p>
             <div className="mt-4">
               <Link
-                href="/land/map"
+                href="/dashboard/lands"
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
               >
-                View Field Map
+                View Land
+              </Link>
+            </div>
+          </div>
+
+          {/* Inventory Management Card */}
+          <div className="bg-white shadow rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-800">Inventory </h2>
+              <Link href="/dashboard/inventory" className="text-sm text-green-600 hover:text-green-800">
+                View Inventory
+              </Link>
+            </div>
+            <p className="text-gray-600">View field information and crop assignments</p>
+            <div className="mt-4">
+              <Link
+                href="/dashboard/inventory"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              >
+                View Inventory
+              </Link>
+            </div>
+          </div>
+
+          {/* Report Management Card */}
+          <div className="bg-white shadow rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-800">Report </h2>
+              <Link href="/dashboard/reports" className="text-sm text-green-600 hover:text-green-800">
+                View reports
+              </Link>
+            </div>
+            <p className="text-gray-600">View field information and crop assignments</p>
+            <div className="mt-4">
+              <Link
+                href="/dashboard/reports"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              >
+                View Report
+              </Link>
+            </div>
+          </div>
+
+          {/* Health Management Card */}
+          <div className="bg-white shadow rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-800">Health </h2>
+              <Link href="/dashboard/health" className="text-sm text-green-600 hover:text-green-800">
+                View Health
+              </Link>
+            </div>
+            <p className="text-gray-600">View field information and crop assignments</p>
+            <div className="mt-4">
+              <Link
+                href="/dashboard/health"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              >
+                View Health
+              </Link>
+            </div>
+          </div>
+
+          {/* AI Management Card */}
+          <div className="bg-white shadow rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-800">AI </h2>
+              <Link href="/dashboard/ai" className="text-sm text-green-600 hover:text-green-800">
+                AI Analysis
+              </Link>
+            </div>
+            <p className="text-gray-600">AI Analysis information and crop assignments</p>
+            <div className="mt-4">
+              <Link
+                href="/dashboard/ai"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              >
+                AI Analysis
               </Link>
             </div>
           </div>

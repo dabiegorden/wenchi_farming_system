@@ -183,67 +183,76 @@ export default function UserManagement() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">User Management</h1>
         <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
-          <DialogTrigger asChild>
-            <Button>Add New User</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New User</DialogTitle>
-              <DialogDescription>Create a new user account with specific role and permissions.</DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleAddUser}>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Name</Label>
-                  <Input
-                    id="name"
-                    value={newUser.name}
-                    onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={newUser.email}
-                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={newUser.password}
-                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Select value={newUser.role} onValueChange={(value) => setNewUser({ ...newUser, role: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="user">User</SelectItem>
-                      <SelectItem value="researcher">Researcher</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Creating..." : "Create User"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+  <DialogTrigger asChild>
+    <Button className="bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg flex items-center gap-2 px-4 py-2 transition-colors">
+      Add New User
+    </Button>
+  </DialogTrigger>
+  <DialogContent className="sm:max-w-md bg-white rounded-xl shadow-lg border-0">
+    <DialogHeader className="pb-2">
+      <DialogTitle className="text-xl font-semibold text-gray-800">Add New User</DialogTitle>
+      <DialogDescription className="text-gray-500">Create a new user account with specific role and permissions.</DialogDescription>
+    </DialogHeader>
+    <form onSubmit={handleAddUser}>
+      <div className="grid gap-5 py-4">
+        <div className="grid gap-2">
+          <Label htmlFor="name" className="font-medium text-gray-700">Name</Label>
+          <Input
+            id="name"
+            value={newUser.name}
+            onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+            required
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="email" className="font-medium text-gray-700">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            value={newUser.email}
+            onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+            required
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="password" className="font-medium text-gray-700">Password</Label>
+          <Input
+            id="password"
+            type="password"
+            value={newUser.password}
+            onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+            required
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="role" className="font-medium text-gray-700">Role</Label>
+          <Select value={newUser.role} onValueChange={(value) => setNewUser({ ...newUser, role: value })}>
+            <SelectTrigger className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <SelectValue placeholder="Select role" />
+            </SelectTrigger>
+            <SelectContent className="bg-white rounded-lg shadow-lg border-0">
+              <SelectItem value="user" className="hover:bg-blue-50">User</SelectItem>
+              <SelectItem value="researcher" className="hover:bg-blue-50">Researcher</SelectItem>
+              <SelectItem value="admin" className="hover:bg-blue-50">Admin</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <DialogFooter className="pt-2 border-t border-gray-100">
+        <Button 
+          type="submit" 
+          disabled={isSubmitting}
+          className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg px-4 py-2 transition-colors"
+        >
+          {isSubmitting ? "Creating..." : "Create User"}
+        </Button>
+      </DialogFooter>
+    </form>
+  </DialogContent>
+</Dialog>
       </div>
 
       <Card>

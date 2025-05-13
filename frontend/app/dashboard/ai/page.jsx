@@ -35,40 +35,35 @@ export default function AIFeaturesPage() {
         </div>
       </div>
 
-      <Tabs 
-        defaultValue="smart-notifications" 
-        value={activeTab} 
-        onValueChange={setActiveTab} 
-        className="space-y-6"
-      >
+      <Tabs defaultValue="smart-notifications" value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="w-full bg-transparent p-0 gap-2">
           <div className="flex flex-wrap gap-2">
-            <TabsTrigger 
-              value="smart-notifications" 
+            <TabsTrigger
+              value="smart-notifications"
               className="flex items-center gap-2 bg-white shadow-sm hover:bg-green-50 data-[state=active]:bg-green-600 data-[state=active]:text-white transition-colors"
             >
               <Bell className="h-5 w-5" />
               <span className="hidden sm:inline">Smart Notifications</span>
               <span className="sm:hidden">Notifications</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="weather-analysis" 
+            <TabsTrigger
+              value="weather-analysis"
               className="flex items-center gap-2 bg-white shadow-sm hover:bg-blue-50 data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-colors"
             >
               <CloudRain className="h-5 w-5" />
               <span className="hidden sm:inline">Weather Analysis</span>
               <span className="sm:hidden">Weather</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="crop-health" 
+            <TabsTrigger
+              value="crop-health"
               className="flex items-center gap-2 bg-white shadow-sm hover:bg-amber-50 data-[state=active]:bg-amber-600 data-[state=active]:text-white transition-colors"
             >
               <Leaf className="h-5 w-5" />
               <span className="hidden sm:inline">Crop Health</span>
               <span className="sm:hidden">Health</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="crop-recommendations" 
+            <TabsTrigger
+              value="crop-recommendations"
               className="flex items-center gap-2 bg-white shadow-sm hover:bg-teal-50 data-[state=active]:bg-teal-600 data-[state=active]:text-white transition-colors"
             >
               <Sprout className="h-5 w-5" />
@@ -215,9 +210,9 @@ function SmartNotificationsTab() {
       </CardHeader>
       <CardContent className="space-y-6 pt-6">
         <div className="flex flex-col md:flex-row gap-4">
-          <Button 
-            onClick={generateNotifications} 
-            disabled={loading} 
+          <Button
+            onClick={generateNotifications}
+            disabled={loading}
             className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 transition-colors"
           >
             {loading ? (
@@ -261,9 +256,7 @@ function SmartNotificationsTab() {
                 <div
                   key={index}
                   className={`border rounded-xl p-4 transition-all hover:shadow-md ${
-                    selectedNotifications.includes(index) 
-                      ? "border-green-500 bg-green-50 shadow-sm" 
-                      : "border-gray-200"
+                    selectedNotifications.includes(index) ? "border-green-500 bg-green-50 shadow-sm" : "border-gray-200"
                   }`}
                 >
                   <div className="flex items-start gap-3">
@@ -386,9 +379,9 @@ function WeatherAnalysisTab() {
         </div>
       </CardHeader>
       <CardContent className="space-y-6 pt-6">
-        <Button 
-          onClick={analyzeWeather} 
-          disabled={loading} 
+        <Button
+          onClick={analyzeWeather}
+          disabled={loading}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 transition-colors"
         >
           {loading ? (
@@ -418,6 +411,35 @@ function WeatherAnalysisTab() {
               <Card className="border-0 shadow-sm">
                 <CardContent className="pt-6">
                   <p className="mb-4 text-gray-700">{weatherAnalysis.weatherAnalysis?.summary}</p>
+
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium text-gray-700">Impact Assessment:</span>
+                      <span className="text-sm font-semibold">
+                        {weatherAnalysis.weatherAnalysis?.impact || "Moderate"}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                      <div
+                        className={`h-2.5 rounded-full ${
+                          weatherAnalysis.weatherAnalysis?.impact === "Positive"
+                            ? "bg-green-600"
+                            : weatherAnalysis.weatherAnalysis?.impact === "Moderate"
+                              ? "bg-yellow-500"
+                              : "bg-red-500"
+                        }`}
+                        style={{
+                          width: `${
+                            weatherAnalysis.weatherAnalysis?.impact === "Positive"
+                              ? "75"
+                              : weatherAnalysis.weatherAnalysis?.impact === "Moderate"
+                                ? "50"
+                                : "25"
+                          }%`,
+                        }}
+                      ></div>
+                    </div>
+                  </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="border-l-4 border-red-500 pl-4">
@@ -811,9 +833,9 @@ function CropHealthAnalysisTab() {
             </div>
           )}
 
-          <Button 
-            onClick={analyzeCropHealth} 
-            disabled={loading} 
+          <Button
+            onClick={analyzeCropHealth}
+            disabled={loading}
             className="flex items-center gap-2 mt-2 bg-green-600 hover:bg-green-700 transition-colors"
           >
             {loading ? (
@@ -854,7 +876,13 @@ function CropHealthAnalysisTab() {
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2.5 mt-1">
                   <div
-                    className="bg-green-600 h-2.5 rounded-full"
+                    className={`h-2.5 rounded-full ${
+                      analysisResult.severity === "healthy" || analysisResult.severity === "mild"
+                        ? "bg-green-600"
+                        : analysisResult.severity === "moderate"
+                          ? "bg-yellow-500"
+                          : "bg-red-500"
+                    }`}
                     style={{ width: `${analysisResult.confidenceLevel}%` }}
                   ></div>
                 </div>
@@ -1155,9 +1183,9 @@ function CropRecommendationsTab() {
             </Select>
           </div>
 
-          <Button 
-            onClick={getCropRecommendations} 
-            disabled={loading} 
+          <Button
+            onClick={getCropRecommendations}
+            disabled={loading}
             className="flex items-center gap-2 mt-2 bg-teal-600 hover:bg-teal-700 transition-colors"
           >
             {loading ? (
@@ -1194,7 +1222,16 @@ function CropRecommendationsTab() {
                           <Sprout className="h-4 w-4 text-teal-600" />
                           {crop.cropName}
                         </CardTitle>
-                        <Badge variant="outline" className="bg-teal-100 text-teal-800">
+                        <Badge
+                          variant="outline"
+                          className={`${
+                            crop.suitabilityScore >= 70
+                              ? "bg-green-100 text-green-800"
+                              : crop.suitabilityScore >= 40
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-red-100 text-red-800"
+                          }`}
+                        >
                           {crop.suitabilityScore}% Suitable
                         </Badge>
                       </div>

@@ -366,7 +366,7 @@ export default function UserDashboard() {
           </div>
 
           {/* Report Management Card */}
-          <div className="bg-white shadow rounded-lg p-6">
+          {/* <div className="bg-white shadow rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-gray-800">Report </h2>
               <Link href="/dashboard/reports" className="text-sm text-green-600 hover:text-green-800">
@@ -382,7 +382,7 @@ export default function UserDashboard() {
                 View Report
               </Link>
             </div>
-          </div>
+          </div> */}
 
           {/* Health Management Card */}
           <div className="bg-white shadow rounded-lg p-6">

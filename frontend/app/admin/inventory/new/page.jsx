@@ -200,7 +200,7 @@ export default function AddInventoryItem() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="unitCost">Unit Cost ($)</Label>
+                <Label htmlFor="unitCost">Unit Cost (₵)</Label>
                 <Input
                   id="unitCost"
                   name="unitCost"

@@ -192,7 +192,7 @@ export default function InventoryItemDetailsPage({ params }) {
                   </li>
                   <li className="flex items-start">
                     <span className="font-medium mr-2">Unit Cost:</span>
-                    <span>${item.unitCost || "0.00"}</span>
+                    <span>₵{item.unitCost || "0.00"}</span>
                   </li>
                   {item.expiryDate && (
                     <li className="flex items-start">

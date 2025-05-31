@@ -103,7 +103,7 @@ export default function InventoryPage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Unit Cost:</span>
-                    <span className="font-medium">${item.unitCost || "0.00"}</span>
+                    <span className="font-medium">₵{item.unitCost || "0.00"}</span>
                   </div>
                   {item.supplier && (
                     <div className="flex justify-between">

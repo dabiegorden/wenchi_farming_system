@@ -229,6 +229,7 @@ export default function NewHealthAssessment() {
                     Land Plot (Optional)
                   </label>
                   <Select
+                  className="bg-slate-800"
                     value={formData.landId}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, landId: value }))}
                   >
@@ -249,7 +250,7 @@ export default function NewHealthAssessment() {
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                   <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="image">Image-based Assessment</TabsTrigger>
-                    <TabsTrigger value="symptoms">Symptoms-based Assessment</TabsTrigger>
+                    
                   </TabsList>
                   <TabsContent value="image" className="space-y-4 pt-4">
                     <div>

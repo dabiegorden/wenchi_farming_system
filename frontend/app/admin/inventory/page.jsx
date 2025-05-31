@@ -213,7 +213,7 @@ export default function AdminInventoryManagement() {
                             <td className="px-4 py-3 text-sm">
                               {item.quantity} {item.unit}
                             </td>
-                            <td className="px-4 py-3 text-sm">${item.unitCost?.toFixed(2) || "0.00"}</td>
+                            <td className="px-4 py-3 text-sm">₵{item.unitCost?.toFixed(2) || "0.00"}</td>
                             <td className="px-4 py-3 text-sm">
                               <span
                                 className={`px-2 py-1 rounded-full text-xs font-medium ${

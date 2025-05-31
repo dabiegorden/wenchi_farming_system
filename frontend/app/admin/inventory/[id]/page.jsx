@@ -192,7 +192,7 @@ export default function InventoryItemDetails() {
                   <DollarSign className="h-5 w-5 text-green-600 mt-0.5" />
                   <div>
                     <h3 className="font-medium">Unit Cost</h3>
-                    <p className="text-muted-foreground mt-1">${item.unitCost?.toFixed(2) || "0.00"}</p>
+                    <p className="text-muted-foreground mt-1">₵{item.unitCost?.toFixed(2) || "0.00"}</p>
                   </div>
                 </div>
 
